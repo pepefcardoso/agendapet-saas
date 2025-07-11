@@ -4,6 +4,7 @@ import { registerPetShopUserBodySchema } from '../dtos/RegisterPetShopUserDTO';
 import { PrismaPetShopUserRepository } from '@/infra/database/prisma/repositories/PrismaPetShopUserRepository';
 import { RegisterPetShopUserUseCase } from '@/core/application/use-cases/RegisterPetShopUserUseCase';
 import { UserAlreadyExistsError } from '@/core/application/use-cases/errors/UserAlreadyExistsError';
+import { Role } from '@prisma/client';
 
 export class RegisterPetShopUserController {
   async handle(request: NextRequest): Promise<NextResponse> {
@@ -20,7 +21,7 @@ export class RegisterPetShopUserController {
         email,
         password,
         petShopId,
-        role,
+        role: role as Role,
       });
 
       return new NextResponse(null, { status: 201 });
