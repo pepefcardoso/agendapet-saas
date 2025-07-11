@@ -1,0 +1,243 @@
+// Define o gerador do Prisma Client
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Define a fonte de dados, conectando ao nosso banco PostgreSQL via .env
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- ENUMS ---
+enum Role {
+  OWNER
+  EMPLOYEE
+}
+
+enum PetSize {
+  PEQUENO
+  MEDIO
+  GRANDE
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  PIX
+}
+
+enum PaymentType {
+  MONETARY
+  SUBSCRIPTION_CREDIT
+  LOYALTY_CREDIT
+}
+
+// --- ENTIDADES CENTRAIS ---
+
+// Usuário do Petshop (dono, funcionário)
+model PetShopUser {
+  id        String  @id @default(cuid())
+  name      String
+  email     String  @unique
+  password  String // Hashed
+  role      Role    @default(EMPLOYEE)
+  petShopId String
+  petShop   PetShop @relation(fields: [petShopId], references: [id], onDelete: Cascade)
+}
+
+// O Petshop (inquilino da plataforma)
+model PetShop {
+  id                   String                   @id @default(cuid())
+  name                 String
+  address              String?
+  phone                String?
+  workingHours         Json?
+  activeSubscriptionId String?                  @unique
+  activeSubscription   PetShopSubscription?     @relation("PetShopActiveSubscription", fields: [activeSubscriptionId], references: [id])
+  users                PetShopUser[]
+  services             Service[]
+  clientPlans          ClientSubscriptionPlan[]
+  loyaltyPlan          LoyaltyPlan?
+  appointments         Appointment[]
+  ratings              Rating[]
+  clients              PetShopClient[]
+}
+
+// Usuário Cliente (cliente final)
+model ClientUser {
+  id                  String                @id @default(cuid())
+  name                String
+  email               String                @unique
+  password            String // Hashed
+  pets                Pet[]
+  appointments        Appointment[]
+  ratings             Rating[]
+  petShops            PetShopClient[]
+  activeSubscriptions ClientSubscription[]
+  loyaltyPoints       ClientLoyaltyPoints[]
+}
+
+// Tabela de Junção para a relação N:M entre PetShop e ClientUser
+model PetShopClient {
+  petShopId String
+  clientId  String
+  petShop   PetShop    @relation(fields: [petShopId], references: [id], onDelete: Cascade)
+  client    ClientUser @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@id([petShopId, clientId])
+}
+
+// --- MONETIZAÇÃO B2B (PLATAFORMA -> PETSHOP) ---
+
+model PetShopSubscriptionPlan {
+  id                      String                @id @default(cuid())
+  name                    String // Ex: "Free", "Basic", "Pro"
+  price                   Decimal
+  maxClients              Int
+  maxAppointmentsPerMonth Int
+  features                Json // { "loyaltyProgram": true, "onlinePayment": false }
+  subscriptions           PetShopSubscription[]
+}
+
+model PetShopSubscription {
+  id          String                  @id @default(cuid())
+  status      SubscriptionStatus
+  renewalDate DateTime
+  planId      String
+  plan        PetShopSubscriptionPlan @relation(fields: [planId], references: [id])
+  petShop     PetShop?                @relation("PetShopActiveSubscription")
+}
+
+// --- ENTIDADES DO DOMÍNIO DO PETSHOP ---
+
+model Service {
+  id           String        @id @default(cuid())
+  name         String
+  duration     Int
+  price        Decimal
+  petShopId    String
+  petShop      PetShop       @relation(fields: [petShopId], references: [id], onDelete: Cascade)
+  appointments Appointment[] @relation("AppointmentToService")
+}
+
+model Pet {
+  id           String        @id @default(cuid())
+  name         String
+  size         PetSize
+  ownerId      String
+  owner        ClientUser    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+}
+
+model Appointment {
+  id          String            @id @default(cuid())
+  date        DateTime
+  status      AppointmentStatus @default(PENDING)
+  paymentType PaymentType       @default(MONETARY)
+  clientId    String
+  petId       String
+  petShopId   String
+  client      ClientUser        @relation(fields: [clientId], references: [id])
+  pet         Pet               @relation(fields: [petId], references: [id])
+  petShop     PetShop           @relation(fields: [petShopId], references: [id])
+  services    Service[]         @relation("AppointmentToService")
+  payment     Payment?
+}
+
+// --- MONETIZAÇÃO B2C (PETSHOP -> CLIENTE) ---
+
+model ClientSubscriptionPlan {
+  id            String               @id @default(cuid())
+  name          String
+  price         Decimal
+  credits       Json // Ex: [{ serviceId: "...", quantity: 2 }]
+  isActive      Boolean              @default(true)
+  petShopId     String
+  petShop       PetShop              @relation(fields: [petShopId], references: [id])
+  subscriptions ClientSubscription[]
+}
+
+model ClientSubscription {
+  id          String                     @id @default(cuid())
+  status      SubscriptionStatus         @default(ACTIVE)
+  renewalDate DateTime
+  clientId    String
+  planId      String
+  client      ClientUser                 @relation(fields: [clientId], references: [id])
+  plan        ClientSubscriptionPlan     @relation(fields: [planId], references: [id])
+  credits     ClientSubscriptionCredit[]
+}
+
+model ClientSubscriptionCredit {
+  id               String             @id @default(cuid())
+  subscriptionId   String
+  serviceId        String
+  remainingCredits Int
+  subscription     ClientSubscription @relation(fields: [subscriptionId], references: [id])
+}
+
+model LoyaltyPlan {
+  id            String             @id @default(cuid())
+  pointsPerReal Int
+  petShopId     String             @unique
+  petShop       PetShop            @relation(fields: [petShopId], references: [id])
+  promotions    LoyaltyPromotion[]
+}
+
+model LoyaltyPromotion {
+  id             String      @id @default(cuid())
+  description    String
+  pointsNeeded   Int
+  serviceCredits Json // Ex: [{ serviceId: "...", quantity: 1 }]
+  loyaltyPlanId  String
+  loyaltyPlan    LoyaltyPlan @relation(fields: [loyaltyPlanId], references: [id])
+}
+
+model ClientLoyaltyPoints {
+  clientId  String
+  petShopId String
+  points    Int
+  client    ClientUser @relation(fields: [clientId], references: [id])
+
+  @@id([clientId, petShopId])
+}
+
+// --- ENTIDADES DE SUPORTE ---
+
+model Rating {
+  id        String     @id @default(cuid())
+  score     Int // 1 a 5
+  comment   String?
+  clientId  String
+  petShopId String
+  client    ClientUser @relation(fields: [clientId], references: [id])
+  petShop   PetShop    @relation(fields: [petShopId], references: [id])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  amount        Decimal
+  status        PaymentStatus @default(PENDING)
+  paymentMethod PaymentMethod
+  appointmentId String        @unique
+  appointment   Appointment   @relation(fields: [appointmentId], references: [id])
+}
