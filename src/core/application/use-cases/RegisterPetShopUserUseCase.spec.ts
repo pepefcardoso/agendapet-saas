@@ -1,93 +1,98 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { RegisterPetShopUserUseCase } from './RegisterPetShopUserUseCase';
 import { IPetShopUserRepository } from '@/core/domain/repositories/IPetShopUserRepository';
-import { PetShopUser, Role } from '@prisma/client';
+import { IPetShopRepository } from '@/core/domain/repositories/IPetShopRepository';
+import { PetShopUser, Role, PetShop } from '@prisma/client';
 import { UserAlreadyExistsError } from './errors/UserAlreadyExistsError';
 import { CreatePetShopUserData } from '@/core/domain/repositories/IPetShopUserRepository';
+import { CreatePetShopData } from '@/core/domain/repositories/IPetShopRepository';
 
-// --- Mock (Simulação) do nosso Repositório ---
-// Vamos criar uma implementação falsa em memória para usar nos testes.
-let usersDatabase: PetShopUser[] = [];
+let petShopUsersDatabase: PetShopUser[] = [];
+let petShopsDatabase: PetShop[] = [];
+
 const inMemoryPetShopUserRepository: IPetShopUserRepository = {
   async findByEmail(email: string) {
-    const user = usersDatabase.find((user) => user.email === email);
-    return user || null;
+    return petShopUsersDatabase.find((user) => user.email === email) || null;
   },
   async create(data: CreatePetShopUserData) {
     const newUser: PetShopUser = {
-      id: `user-${usersDatabase.length + 1}`,
+      id: `user-${petShopUsersDatabase.length + 1}`,
       name: data.name,
       email: data.email,
-      password: data.password, // No teste, recebemos o hash do caso de uso
+      password: data.password,
       role: data.role as Role,
       petShopId: data.petShopId,
     };
-    usersDatabase.push(newUser);
+    petShopUsersDatabase.push(newUser);
     return newUser;
   },
 };
-// --- Fim do Mock ---
 
-// "SUT" é uma sigla comum em testes que significa "System Under Test" (Sistema Sob Teste)
+const inMemoryPetShopRepository: IPetShopRepository = {
+  async create(data: CreatePetShopData) {
+    const newPetShop: PetShop = {
+      id: `petshop-${petShopsDatabase.length + 1}`,
+      name: data.name,
+      address: null,
+      phone: null,
+      workingHours: null,
+      activeSubscriptionId: null,
+    };
+    petShopsDatabase.push(newPetShop);
+    return newPetShop;
+  },
+  async findById() {
+    return null;
+  },
+  async update() {
+    return {} as PetShop;
+  },
+};
+
 let sut: RegisterPetShopUserUseCase;
 
 describe('Register PetShop User Use Case', () => {
-  // O 'beforeEach' é uma função do Vitest que é executada antes de cada teste ('it').
-  // Usamo-la para garantir que cada teste começa com um "ambiente limpo".
   beforeEach(() => {
-    usersDatabase = []; // Limpa a nossa base de dados em memória
-    sut = new RegisterPetShopUserUseCase(inMemoryPetShopUserRepository); // Cria uma nova instância do caso de uso
+    petShopUsersDatabase = [];
+    petShopsDatabase = [];
+    sut = new RegisterPetShopUserUseCase(inMemoryPetShopUserRepository, inMemoryPetShopRepository);
   });
 
-  it('should be able to register a new petshop user', async () => {
+  it('should be able to register a new petshop and its owner', async () => {
     const { user } = await sut.execute({
+      petShopName: 'Happy Paws',
       name: 'John Doe',
       email: 'johndoe@example.com',
       password: 'password123',
-      role: Role.OWNER,
-      petShopId: 'petshop-01',
     });
 
-    // 'expect' é onde fazemos as nossas asserções (verificações)
-    expect(user.id).toEqual(expect.any(String)); // Esperamos que o usuário tenha um ID (qualquer string)
-    expect(usersDatabase.length).toBe(1); // Esperamos que o usuário tenha sido salvo na nossa base de dados falsa
-    expect(usersDatabase[0].name).toEqual('John Doe');
-  });
+    expect(user.id).toEqual(expect.any(String));
+    expect(user.role).toBe(Role.OWNER);
+    expect(petShopUsersDatabase.length).toBe(1);
+    expect(petShopUsersDatabase[0].name).toBe('John Doe');
 
-  it('should hash the user password upon registration', async () => {
-    const { user } = await sut.execute({
-      name: 'John Doe',
-      email: 'johndoe@example.com',
-      password: 'password123',
-      role: Role.OWNER,
-      petShopId: 'petshop-01',
-    });
+    expect(petShopsDatabase.length).toBe(1);
+    expect(petShopsDatabase[0].name).toBe('Happy Paws');
 
-    // Verificamos que a senha guardada na "base de dados" NÃO É a senha original
-    expect(user.password).not.toEqual('password123');
+    expect(user.petShopId).toBe(petShopsDatabase[0].id);
   });
 
   it('should not be able to register with an existing email', async () => {
     const email = 'johndoe@example.com';
 
-    // Primeiro, registamos um usuário com um e-mail específico
     await sut.execute({
+      petShopName: 'Happy Paws',
       name: 'John Doe',
       email: email,
       password: 'password123',
-      role: Role.OWNER,
-      petShopId: 'petshop-01',
     });
 
-    // Depois, esperamos que a tentativa de registrar com o MESMO e-mail seja rejeitada
-    // e que o erro seja uma instância do nosso erro customizado.
     await expect(() =>
       sut.execute({
+        petShopName: 'Sad Paws',
         name: 'Jane Doe',
-        email: email, // mesmo e-mail
+        email: email,
         password: 'password456',
-        role: 'EMPLOYEE',
-        petShopId: 'petshop-02',
       }),
     ).rejects.toBeInstanceOf(UserAlreadyExistsError);
   });

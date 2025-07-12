@@ -2,26 +2,29 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { registerPetShopUserBodySchema } from '../dtos/RegisterPetShopUserDTO';
 import { PrismaPetShopUserRepository } from '@/infra/database/prisma/repositories/PrismaPetShopUserRepository';
+import { PrismaPetShopRepository } from '@/infra/database/prisma/repositories/PrismaPetShopRepository';
 import { RegisterPetShopUserUseCase } from '@/core/application/use-cases/RegisterPetShopUserUseCase';
 import { UserAlreadyExistsError } from '@/core/application/use-cases/errors/UserAlreadyExistsError';
-import { Role } from '@prisma/client';
 
 export class RegisterPetShopUserController {
   async handle(request: NextRequest): Promise<NextResponse> {
     try {
       const requestBody = await request.json();
-      const { name, email, password, petShopId, role } =
+      const { name, email, password, petShopName } =
         registerPetShopUserBodySchema.parse(requestBody);
 
       const petShopUserRepository = new PrismaPetShopUserRepository();
-      const registerUseCase = new RegisterPetShopUserUseCase(petShopUserRepository);
+      const petShopRepository = new PrismaPetShopRepository();
+      const registerUseCase = new RegisterPetShopUserUseCase(
+        petShopUserRepository,
+        petShopRepository,
+      );
 
       await registerUseCase.execute({
+        petShopName,
         name,
         email,
         password,
-        petShopId,
-        role: role as Role,
       });
 
       return new NextResponse(null, { status: 201 });

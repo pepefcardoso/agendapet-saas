@@ -4,62 +4,60 @@ import { prisma } from '@/infra/database/prisma/client';
 
 describe('Register PetShop User (E2E)', () => {
   const appUrl = 'http://localhost:3000';
-  let createdPetShopId: string;
-  const testUserEmail = 'e2e.register.user@example.com'; // E-mail único para este arquivo
+  const testUserEmail = 'e2e.register.user@example.com';
+  const testPetShopName = 'PetShop Register E2E Test';
 
   beforeAll(async () => {
     await prisma.$connect();
-    // Limpa dados de execuções anteriores para garantir um início limpo
     await prisma.petShopUser.deleteMany({ where: { email: testUserEmail } });
-    await prisma.petShop.deleteMany({ where: { name: 'PetShop Register E2E Test' } });
-
-    // Cria o PetShop necessário para os testes neste arquivo
-    const petshop = await prisma.petShop.create({
-      data: {
-        name: 'PetShop Register E2E Test',
-      },
-    });
-    createdPetShopId = petshop.id;
+    await prisma.petShop.deleteMany({ where: { name: testPetShopName } });
   });
 
   afterAll(async () => {
-    // Limpa apenas os dados criados por este arquivo de teste
     await prisma.petShopUser.deleteMany({ where: { email: testUserEmail } });
-    await prisma.petShop.deleteMany({ where: { id: createdPetShopId } });
+    await prisma.petShop.deleteMany({ where: { name: testPetShopName } });
     await prisma.$disconnect();
   });
 
-  it('should be able to register a new petshop user', async () => {
+  it('should be able to register a new petshop and its owner', async () => {
     const response = await request(appUrl).post('/api/auth/petshop/register').send({
-      name: 'E2E Test User',
+      petShopName: testPetShopName,
+      name: 'E2E Test Owner',
       email: testUserEmail,
       password: 'password123',
-      role: 'OWNER',
-      petShopId: createdPetShopId,
     });
 
     if (response.status !== 201) {
       console.error('API Response Body on Failure (Register Test):', response.body);
     }
+
     expect(response.status).toBe(201);
+
+    const petshopInDb = await prisma.petShop.findFirst({
+      where: { name: testPetShopName },
+    });
+    const userInDb = await prisma.petShopUser.findUnique({
+      where: { email: testUserEmail },
+    });
+
+    expect(petshopInDb).not.toBeNull();
+    expect(userInDb).not.toBeNull();
+    expect(userInDb?.petShopId).toBe(petshopInDb?.id);
+    expect(userInDb?.role).toBe('OWNER');
   });
 
   it('should not be able to register with an existing email', async () => {
-    // Este teste depende do usuário criado no teste anterior.
-    // Agora, tentamos registrar um novo usuário com o mesmo e-mail via API.
     const response = await request(appUrl).post('/api/auth/petshop/register').send({
+      petShopName: 'Another PetShop',
       name: 'Another E2E User',
-      email: testUserEmail, // E-mail duplicado
+      email: testUserEmail,
       password: 'password456',
-      role: 'EMPLOYEE',
-      petShopId: createdPetShopId,
     });
 
     if (response.status !== 409) {
       console.error('API Response Body on Failure (Conflict Test):', response.body);
     }
 
-    // A API deve retornar 409 (Conflict)
     expect(response.status).toBe(409);
   });
 });
