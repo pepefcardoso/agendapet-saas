@@ -6,6 +6,9 @@ import { GetMyPetShopUseCase } from '@/core/application/use-cases/GetMyPetShopUs
 import { UpdatePetShopSettingsUseCase } from '@/core/application/use-cases/UpdatePetShopSettingsUseCase';
 import { ResourceNotFoundError } from '@/core/application/use-cases/errors/ResourceNotFoundError';
 import { updatePetShopSettingsBodySchema } from '../dtos/UpdatePetShopSettingsBodyDTO';
+import { PrismaAppointmentRepository } from '@/infra/database/prisma/repositories/PrismaAppointmentRepository';
+import { ListPetShopAgendaUseCase } from '@/core/application/use-cases/ListPetShopAgendaUseCase';
+import { listAgendaQuerySchema } from '../dtos/ListAgendaQueryDTO';
 
 export class PetShopController {
   async get(request: NextRequest): Promise<NextResponse> {
@@ -61,6 +64,36 @@ export class PetShopController {
         );
       }
 
+      console.error(error);
+      return NextResponse.json({ message: 'Internal Server Error.' }, { status: 500 });
+    }
+  }
+
+  async listAgenda(request: NextRequest): Promise<NextResponse> {
+    try {
+      const petShopId = request.headers.get('X-PetShop-ID');
+      if (!petShopId) {
+        return NextResponse.json({ message: 'PetShop ID not found.' }, { status: 401 });
+      }
+
+      const { searchParams } = new URL(request.url);
+      const { date } = listAgendaQuerySchema.parse({
+        date: searchParams.get('date'),
+      });
+
+      const appointmentRepository = new PrismaAppointmentRepository();
+      const listPetShopAgendaUseCase = new ListPetShopAgendaUseCase(appointmentRepository);
+
+      const { appointments } = await listPetShopAgendaUseCase.execute({ petShopId, date });
+
+      return NextResponse.json({ appointments });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { message: 'Validation error.', issues: error.format() },
+          { status: 400 },
+        );
+      }
       console.error(error);
       return NextResponse.json({ message: 'Internal Server Error.' }, { status: 500 });
     }
