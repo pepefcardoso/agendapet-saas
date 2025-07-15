@@ -8,5 +8,6 @@ export interface IServiceRepository {
   update(id: string, data: UpdateServiceData): Promise<Service | null>;
   delete(id: string): Promise<void>;
   findById(id: string): Promise<Service | null>;
+  findByIds(ids: string[]): Promise<Service[]>;
   findByPetShopId(petShopId: string): Promise<Service[]>;
 }

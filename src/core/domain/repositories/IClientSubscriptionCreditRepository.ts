@@ -1,7 +1,28 @@
+import { ClientSubscriptionCredit, PrismaClient } from '@prisma/client';
+
+type PrismaTransactionClient = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use'
+>;
+
 export interface IClientSubscriptionCreditRepository {
-  // Neste momento, não precisamos de métodos explícitos aqui, pois a criação
-  // será gerenciada pela transação no IClientSubscriptionRepository.
-  // Métodos como `findBySubscription` ou `updateRemainingCredits` seriam adicionados aqui no futuro.
-  // Por exemplo:
-  // findBySubscription(subscriptionId: string): Promise<ClientSubscriptionCredit[]>;
+  createMany(
+    credits: Array<{
+      subscriptionId: string;
+      serviceId: string;
+      remainingCredits: number;
+    }>,
+  ): Promise<void>;
+
+  findByClientAndService(
+    clientId: string,
+    serviceId: string,
+    tx?: PrismaTransactionClient,
+  ): Promise<ClientSubscriptionCredit | null>;
+
+  debit(
+    creditId: string,
+    amount: number,
+    tx?: PrismaTransactionClient, // Parâmetro opcional para transações
+  ): Promise<void>;
 }

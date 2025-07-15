@@ -1,5 +1,5 @@
 import { IClientSubscriptionRepository } from '@/core/domain/repositories/IClientSubscriptionRepository';
-import { ClientSubscription, Prisma } from '@prisma/client';
+import { ClientSubscription, Prisma, SubscriptionStatus } from '@prisma/client';
 import { prisma } from '../client';
 
 type CreditDataInput = Omit<Prisma.ClientSubscriptionCreditUncheckedCreateInput, 'subscriptionId'>;
@@ -41,5 +41,30 @@ export class PrismaClientSubscriptionRepository implements IClientSubscriptionRe
     });
 
     return result;
+  }
+
+  async create(subscription: ClientSubscription): Promise<ClientSubscription> {
+    return await prisma.clientSubscription.create({ data: subscription });
+  }
+
+  async findByPlanAndClient(
+    planId: string,
+    clientId: string,
+    status: SubscriptionStatus = 'ACTIVE',
+  ): Promise<ClientSubscription | null> {
+    return await prisma.clientSubscription.findFirst({
+      where: { planId, clientId, status },
+    });
+  }
+
+  async findById(id: string): Promise<ClientSubscription | null> {
+    return await prisma.clientSubscription.findUnique({ where: { id } });
+  }
+
+  async save(subscription: ClientSubscription): Promise<ClientSubscription> {
+    return await prisma.clientSubscription.update({
+      where: { id: subscription.id },
+      data: subscription,
+    });
   }
 }

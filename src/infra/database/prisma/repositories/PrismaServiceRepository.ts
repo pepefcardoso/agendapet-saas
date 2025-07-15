@@ -35,6 +35,17 @@ export class PrismaServiceRepository implements IServiceRepository {
     return service;
   }
 
+  async findByIds(ids: string[]): Promise<Service[]> {
+    const services = await prisma.service.findMany({
+      where: {
+        id: {
+          in: ids,
+        },
+      },
+    });
+    return services;
+  }
+
   async findByPetShopId(petShopId: string): Promise<Service[]> {
     const services = await prisma.service.findMany({
       where: { petShopId },
