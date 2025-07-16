@@ -1,7 +1,6 @@
-import { ServiceController } from '@/infra/http/controllers/ServiceController';
 import { NextRequest } from 'next/server';
-
-const serviceController = new ServiceController();
+import { makeServiceController } from '@/main/factories/controllers/makeServiceController';
+const serviceController = makeServiceController();
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   return serviceController.update(request, { params });

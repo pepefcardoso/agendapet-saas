@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
-import { RatingController } from '@/infra/http/controllers/RatingController';
+import { makeRatingController } from '@/main/factories/controllers/makeRatingController';
 
-const ratingController = new RatingController();
+const ratingController = makeRatingController();
 
-export async function POST(request: NextRequest, context: { params: { id: string } }) {
-  return ratingController.create(request, context);
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  return ratingController.create(request, { params });
 }
 
-export async function GET(request: NextRequest, context: { params: { id: string } }) {
-  return ratingController.list(request, context);
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  return ratingController.list(request, { params });
 }

@@ -1,7 +1,7 @@
-import { AppointmentController } from '@/infra/http/controllers/AppointmentController';
+import { makeAppointmentController } from '@/main/factories/controllers/makeAppointmentController';
 import { NextRequest } from 'next/server';
 
-const appointmentController = new AppointmentController();
+const appointmentController = makeAppointmentController();
 
 export async function POST(request: NextRequest) {
   return appointmentController.create(request);

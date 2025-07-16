@@ -1,40 +1,37 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { registerClientUserBodySchema } from '../dtos/RegisterClientUserDTO';
-import { PrismaClientUserRepository } from '@/infra/database/prisma/repositories/PrismaClientUserRepository';
 import { RegisterClientUserUseCase } from '@/core/application/use-cases/RegisterClientUserUseCase';
 import { UserAlreadyExistsError } from '@/core/application/use-cases/errors/UserAlreadyExistsError';
+import { registerClientUserBodySchema } from '@/infra/http/dtos/RegisterClientUserDTO';
+import { NextResponse } from 'next/server';
+import z, { ZodError } from 'zod';
 
 export class RegisterClientUserController {
-  async handle(request: NextRequest): Promise<NextResponse> {
+  constructor(private registerClientUserUseCase: RegisterClientUserUseCase) {}
+
+  async handle(request: Request) {
     try {
-      const requestBody = await request.json();
-      const { name, email, password } = registerClientUserBodySchema.parse(requestBody);
+      const { name, email, password } = registerClientUserBodySchema.parse(await request.json());
 
-      const clientUserRepository = new PrismaClientUserRepository();
-      const registerUseCase = new RegisterClientUserUseCase(clientUserRepository);
-
-      await registerUseCase.execute({
+      const { user } = await this.registerClientUserUseCase.execute({
         name,
         email,
         password,
       });
 
-      return new NextResponse(null, { status: 201 });
+      return NextResponse.json({ client: user }, { status: 201 });
     } catch (error) {
-      if (error instanceof UserAlreadyExistsError) {
-        return NextResponse.json({ message: error.message }, { status: 409 });
-      }
-
-      if (error instanceof z.ZodError) {
+      if (error instanceof ZodError) {
         return NextResponse.json(
-          { message: 'Validation error.', issues: error.format() },
+          { message: 'Validation failed.', issues: z.treeifyError(error) },
           { status: 400 },
         );
       }
 
+      if (error instanceof UserAlreadyExistsError) {
+        return NextResponse.json({ message: error.message }, { status: 409 });
+      }
+
       console.error(error);
-      return NextResponse.json({ message: 'Internal Server Error.' }, { status: 500 });
+      return NextResponse.json({ message: 'Internal server error.' }, { status: 500 });
     }
   }
 }

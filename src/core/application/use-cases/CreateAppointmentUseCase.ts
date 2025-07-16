@@ -22,6 +22,7 @@ import {
   setSeconds,
 } from 'date-fns';
 import { LoyaltyCreditPaymentStrategy } from './strategies/payment/LoyaltyCreditPaymentStrategy';
+import { PrismaTransactionClient } from '@/infra/database/prisma/types';
 
 interface IWorkingHours {
   [dayOfWeek: number]: Array<{ start: string; end: string }>;
@@ -85,16 +86,12 @@ export class CreateAppointmentUseCase {
     await this.validateScheduleConflict(petShopId, startTime, services);
 
     try {
-      const appointment = await prisma.$transaction(async (tx) => {
+      const totalDuration = services.reduce((sum, s) => sum + s.duration, 0);
+      const endTime = addMinutes(startTime, totalDuration);
+
+      const appointment = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
         const newAppointment = await this.appointmentRepository.create(
-          {
-            clientId,
-            petShopId,
-            petId,
-            date: startTime,
-            paymentType,
-            serviceIds,
-          },
+          { clientId, petShopId, petId, date: startTime, endTime, paymentType, serviceIds },
           tx,
         );
 
@@ -105,9 +102,7 @@ export class CreateAppointmentUseCase {
         }
 
         newAppointment.status = 'CONFIRMED';
-        const confirmedAppointment = await this.appointmentRepository.save(newAppointment, tx);
-
-        return confirmedAppointment;
+        return this.appointmentRepository.save(newAppointment, tx);
       });
 
       return { appointment };
@@ -172,7 +167,7 @@ export class CreateAppointmentUseCase {
       if (existingAppointment.status === 'CANCELLED') continue;
 
       const existingDuration = existingAppointment.services.reduce(
-        (sum: number, service: any) => sum + service.duration,
+        (sum, service) => sum + service.duration,
         0,
       );
       const existingEndTime = addMinutes(existingAppointment.date, existingDuration);

@@ -1,22 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-
-import { PrismaAppointmentRepository } from '@/infra/database/prisma/repositories/PrismaAppointmentRepository';
-import { PrismaPetShopRepository } from '@/infra/database/prisma/repositories/PrismaPetShopRepository';
-import { PrismaServiceRepository } from '@/infra/database/prisma/repositories/PrismaServiceRepository';
-
 import { CreateAppointmentUseCase } from '@/core/application/use-cases/CreateAppointmentUseCase';
 import { ListClientAppointmentsUseCase } from '@/core/application/use-cases/ListClientAppointmentsUseCase';
-
 import { createAppointmentBodySchema } from '../dtos/CreateAppointmentDTO';
 import { ScheduleConflictError } from '@/core/application/use-cases/errors/ScheduleConflictError';
 import { AppointmentOutsideWorkingHoursError } from '@/core/application/use-cases/errors/AppointmentOutsideWorkingHoursError';
 import { ResourceNotFoundError } from '@/core/application/use-cases/errors/ResourceNotFoundError';
 
 export class AppointmentController {
-  private appointmentRepository = new PrismaAppointmentRepository();
-  private petShopRepository = new PrismaPetShopRepository();
-  private serviceRepository = new PrismaServiceRepository();
+  constructor(
+    private createAppointmentUseCase: CreateAppointmentUseCase,
+    private listClientAppointmentsUseCase: ListClientAppointmentsUseCase,
+  ) {}
 
   async create(request: NextRequest): Promise<NextResponse> {
     try {
@@ -25,22 +20,18 @@ export class AppointmentController {
         return NextResponse.json({ message: 'Client ID is missing.' }, { status: 400 });
       }
 
-      const requestBody = await request.json();
-      const { petShopId, petId, startTime, serviceIds } =
-        createAppointmentBodySchema.parse(requestBody);
+      const body = await request.json();
+      const { petShopId, petId, startTime, serviceIds, paymentType, loyaltyPromotionId } =
+        createAppointmentBodySchema.parse(body);
 
-      const createAppointmentUseCase = new CreateAppointmentUseCase(
-        this.appointmentRepository,
-        this.petShopRepository,
-        this.serviceRepository,
-      );
-
-      const { appointment } = await createAppointmentUseCase.execute({
+      const { appointment } = await this.createAppointmentUseCase.execute({
         clientId,
         petShopId,
         petId,
         startTime,
         serviceIds,
+        paymentType,
+        loyaltyPromotionId,
       });
 
       return NextResponse.json({ appointment }, { status: 201 });
@@ -55,7 +46,7 @@ export class AppointmentController {
         error instanceof ScheduleConflictError ||
         error instanceof AppointmentOutsideWorkingHoursError
       ) {
-        return NextResponse.json({ message: error.message }, { status: 409 }); // 409 Conflict
+        return NextResponse.json({ message: error.message }, { status: 409 });
       }
       if (error instanceof ResourceNotFoundError) {
         return NextResponse.json({ message: error.message }, { status: 404 });
@@ -73,11 +64,7 @@ export class AppointmentController {
         return NextResponse.json({ message: 'Client ID is missing.' }, { status: 400 });
       }
 
-      const listClientAppointmentsUseCase = new ListClientAppointmentsUseCase(
-        this.appointmentRepository,
-      );
-
-      const { appointments } = await listClientAppointmentsUseCase.execute({ clientId });
+      const { appointments } = await this.listClientAppointmentsUseCase.execute({ clientId });
 
       return NextResponse.json({ appointments });
     } catch (error) {

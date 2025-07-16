@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { PrismaServiceRepository } from '@/infra/database/prisma/repositories/PrismaServiceRepository';
 import { CreateServiceUseCase } from '@/core/application/use-cases/CreateServiceUseCase';
 import { ListServicesByPetShopUseCase } from '@/core/application/use-cases/ListServicesByPetShopUseCase';
 import { UpdateServiceUseCase } from '@/core/application/use-cases/UpdateServiceUseCase';
@@ -10,7 +9,12 @@ import { ServiceNotFoundError } from '@/core/application/use-cases/errors/Servic
 import { NotAuthorizedError } from '@/core/application/use-cases/errors/NotAuthorizedError';
 
 export class ServiceController {
-  private serviceRepository = new PrismaServiceRepository();
+  constructor(
+    private createServiceUseCase: CreateServiceUseCase,
+    private listServicesByPetShopUseCase: ListServicesByPetShopUseCase,
+    private updateServiceUseCase: UpdateServiceUseCase,
+    private deleteServiceUseCase: DeleteServiceUseCase,
+  ) {}
 
   async create(request: NextRequest): Promise<NextResponse> {
     try {
@@ -22,8 +26,7 @@ export class ServiceController {
       const requestBody = await request.json();
       const { name, duration, price } = createServiceBodySchema.parse(requestBody);
 
-      const createServiceUseCase = new CreateServiceUseCase(this.serviceRepository);
-      const { service } = await createServiceUseCase.execute({
+      const { service } = await this.createServiceUseCase.execute({
         name,
         duration,
         price,
@@ -50,8 +53,7 @@ export class ServiceController {
         return NextResponse.json({ message: 'PetShop ID is missing.' }, { status: 400 });
       }
 
-      const listServicesUseCase = new ListServicesByPetShopUseCase(this.serviceRepository);
-      const { services } = await listServicesUseCase.execute({ petShopId });
+      const { services } = await this.listServicesByPetShopUseCase.execute({ petShopId });
 
       return NextResponse.json({ services });
     } catch (error) {
@@ -74,8 +76,7 @@ export class ServiceController {
       const requestBody = await request.json();
       const data = updateServiceBodySchema.parse(requestBody);
 
-      const updateServiceUseCase = new UpdateServiceUseCase(this.serviceRepository);
-      const { service } = await updateServiceUseCase.execute({
+      const { service } = await this.updateServiceUseCase.execute({
         serviceId,
         petShopId,
         data,
@@ -112,10 +113,9 @@ export class ServiceController {
 
       const serviceId = params.id;
 
-      const deleteServiceUseCase = new DeleteServiceUseCase(this.serviceRepository);
-      await deleteServiceUseCase.execute({ serviceId, petShopId });
+      await this.deleteServiceUseCase.execute({ serviceId, petShopId });
 
-      return new NextResponse(null, { status: 204 }); // No Content
+      return new NextResponse(null, { status: 204 });
     } catch (error) {
       if (error instanceof ServiceNotFoundError) {
         return NextResponse.json({ message: error.message }, { status: 404 });

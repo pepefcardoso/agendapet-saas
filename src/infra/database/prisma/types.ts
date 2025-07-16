@@ -1,6 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
-export type PrismaTransactionClient = Omit<
-  PrismaClient,
-  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use'
->;
+/**
+ * Representa o client de transação passado no callback de prisma.$transaction.
+ * Permite usar todos os métodos de consulta (find, create, update, delete, etc.) dentro de uma transação.
+ */
+export type PrismaTransactionClient = Prisma.TransactionClient;

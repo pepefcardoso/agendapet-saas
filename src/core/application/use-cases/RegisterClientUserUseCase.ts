@@ -1,7 +1,7 @@
 import { IClientUserRepository } from '@/core/domain/repositories/IClientUserRepository';
-import { hash } from 'bcryptjs';
 import { UserAlreadyExistsError } from './errors/UserAlreadyExistsError';
 import { ClientUser } from '@prisma/client';
+import { IHasher } from '@/infra/providers/IHasher';
 
 interface IRegisterClientUserUseCaseRequest {
   name: string;
@@ -14,7 +14,10 @@ interface IRegisterClientUserUseCaseResponse {
 }
 
 export class RegisterClientUserUseCase {
-  constructor(private clientUserRepository: IClientUserRepository) {}
+  constructor(
+    private clientUserRepository: IClientUserRepository,
+    private hasher: IHasher,
+  ) {}
 
   async execute({
     name,
@@ -27,7 +30,7 @@ export class RegisterClientUserUseCase {
       throw new UserAlreadyExistsError();
     }
 
-    const passwordHash = await hash(password, 8);
+    const passwordHash = await this.hasher.hash(password);
 
     const user = await this.clientUserRepository.create({
       name,

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { PrismaPetRepository } from '@/infra/database/prisma/repositories/PrismaPetRepository';
 import { CreatePetUseCase } from '@/core/application/use-cases/CreatePetUseCase';
 import { ListMyPetsUseCase } from '@/core/application/use-cases/ListMyPetsUseCase';
 import { UpdatePetUseCase } from '@/core/application/use-cases/UpdatePetUseCase';
@@ -10,7 +9,12 @@ import { ResourceNotFoundError } from '@/core/application/use-cases/errors/Resou
 import { NotAuthorizedError } from '@/core/application/use-cases/errors/NotAuthorizedError';
 
 export class PetController {
-  private petRepository = new PrismaPetRepository();
+  constructor(
+    private createPetUseCase: CreatePetUseCase,
+    private listMyPetsUseCase: ListMyPetsUseCase,
+    private updatePetUseCase: UpdatePetUseCase,
+    private deletePetUseCase: DeletePetUseCase,
+  ) {}
 
   async create(request: NextRequest): Promise<NextResponse> {
     try {
@@ -22,8 +26,7 @@ export class PetController {
       const requestBody = await request.json();
       const { name, size } = createPetBodySchema.parse(requestBody);
 
-      const createPetUseCase = new CreatePetUseCase(this.petRepository);
-      const { pet } = await createPetUseCase.execute({ name, size, ownerId });
+      const { pet } = await this.createPetUseCase.execute({ name, size, ownerId });
 
       return NextResponse.json({ pet }, { status: 201 });
     } catch (error) {
@@ -45,8 +48,7 @@ export class PetController {
         return NextResponse.json({ message: 'Client ID is missing.' }, { status: 400 });
       }
 
-      const listMyPetsUseCase = new ListMyPetsUseCase(this.petRepository);
-      const { pets } = await listMyPetsUseCase.execute({ ownerId });
+      const { pets } = await this.listMyPetsUseCase.execute({ ownerId });
 
       return NextResponse.json({ pets });
     } catch (error) {
@@ -69,8 +71,7 @@ export class PetController {
       const requestBody = await request.json();
       const data = updatePetBodySchema.parse(requestBody);
 
-      const updatePetUseCase = new UpdatePetUseCase(this.petRepository);
-      const { pet } = await updatePetUseCase.execute({ petId, ownerId, data });
+      const { pet } = await this.updatePetUseCase.execute({ petId, ownerId, data });
 
       return NextResponse.json({ pet });
     } catch (error) {
@@ -103,8 +104,7 @@ export class PetController {
 
       const petId = params.id;
 
-      const deletePetUseCase = new DeletePetUseCase(this.petRepository);
-      await deletePetUseCase.execute({ petId, ownerId });
+      await this.deletePetUseCase.execute({ petId, ownerId });
 
       return new NextResponse(null, { status: 204 });
     } catch (error) {

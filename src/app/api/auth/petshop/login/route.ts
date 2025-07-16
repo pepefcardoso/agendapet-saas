@@ -1,7 +1,8 @@
-import { AuthenticatePetShopUserController } from '@/infra/http/controllers/AuthenticatePetShopUserController';
+import { makeAuthenticatePetShopUserController } from '@/main/factories/controllers/makeAuthenticatePetShopUserController';
 import { NextRequest } from 'next/server';
 
+const authenticatePetShopUserController = makeAuthenticatePetShopUserController();
+
 export async function POST(request: NextRequest) {
-  const authenticateController = new AuthenticatePetShopUserController();
-  return authenticateController.handle(request);
+  return authenticatePetShopUserController.handle(request);
 }

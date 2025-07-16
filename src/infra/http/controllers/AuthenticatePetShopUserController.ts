@@ -1,46 +1,36 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { authenticateUserBodySchema } from '../dtos/AuthenticateUserDTO';
-import { PrismaPetShopUserRepository } from '@/infra/database/prisma/repositories/PrismaPetShopUserRepository';
 import { AuthenticatePetShopUserUseCase } from '@/core/application/use-cases/AuthenticatePetShopUserUseCase';
-import { JwtService } from '@/infra/providers/JwtService';
 import { InvalidCredentialsError } from '@/core/application/use-cases/errors/InvalidCredentialsError';
+import { authenticateUserBodySchema } from '@/infra/http/dtos/AuthenticateUserDTO';
+import { NextResponse } from 'next/server';
+import z, { ZodError } from 'zod';
 
 export class AuthenticatePetShopUserController {
-  async handle(request: NextRequest): Promise<NextResponse> {
+  constructor(private authenticateUseCase: AuthenticatePetShopUserUseCase) {}
+
+  async handle(request: Request) {
     try {
-      const requestBody = await request.json();
-      const { email, password } = authenticateUserBodySchema.parse(requestBody);
+      const { email, password } = authenticateUserBodySchema.parse(await request.json());
 
-      // --- Injeção de Dependências Manual ---
-      const petShopUserRepository = new PrismaPetShopUserRepository();
-      const jwtService = new JwtService();
-      const authenticateUseCase = new AuthenticatePetShopUserUseCase(
-        petShopUserRepository,
-        jwtService,
-      );
-      // ------------------------------------
-
-      const { accessToken } = await authenticateUseCase.execute({
+      const { accessToken } = await this.authenticateUseCase.execute({
         email,
         password,
       });
 
-      return NextResponse.json({ accessToken });
+      return NextResponse.json({ accessToken }, { status: 200 });
     } catch (error) {
-      if (error instanceof InvalidCredentialsError) {
-        return NextResponse.json({ message: error.message }, { status: 401 }); // 401 Unauthorized
-      }
-
-      if (error instanceof z.ZodError) {
+      if (error instanceof ZodError) {
         return NextResponse.json(
-          { message: 'Validation error.', issues: error.format() },
+          { message: 'Validation failed.', issues: z.treeifyError(error) },
           { status: 400 },
         );
       }
 
+      if (error instanceof InvalidCredentialsError) {
+        return NextResponse.json({ message: error.message }, { status: 401 });
+      }
+
       console.error(error);
-      return NextResponse.json({ message: 'Internal Server Error.' }, { status: 500 });
+      return NextResponse.json({ message: 'Internal server error.' }, { status: 500 });
     }
   }
 }

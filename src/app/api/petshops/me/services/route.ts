@@ -1,7 +1,7 @@
-import { ServiceController } from '@/infra/http/controllers/ServiceController';
 import { NextRequest } from 'next/server';
+import { makeServiceController } from '@/main/factories/controllers/makeServiceController';
 
-const serviceController = new ServiceController();
+const serviceController = makeServiceController();
 
 export async function POST(request: NextRequest) {
   return serviceController.create(request);

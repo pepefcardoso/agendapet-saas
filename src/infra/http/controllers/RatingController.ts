@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ZodError } from 'zod';
-import { PrismaRatingRepository } from '@/infra/database/prisma/repositories/PrismaRatingRepository';
-import { PrismaPetShopRepository } from '@/infra/database/prisma/repositories/PrismaPetShopRepository';
-import { PrismaClientUserRepository } from '@/infra/database/prisma/repositories/PrismaClientUserRepository';
-import { PrismaAppointmentRepository } from '@/infra/database/prisma/repositories/PrismaAppointmentRepository';
+import z, { ZodError } from 'zod';
 import { CreateRatingUseCase } from '@/core/application/use-cases/CreateRatingUseCase';
 import { ListRatingsByPetShopUseCase } from '@/core/application/use-cases/ListRatingsByPetShopUseCase';
 import { ResourceNotFoundError } from '@/core/application/use-cases/errors/ResourceNotFoundError';
@@ -12,6 +8,11 @@ import { createRatingBodySchema } from '../dtos/CreateRatingDTO';
 import { listRatingsQuerySchema } from '../dtos/ListRatingsQueryDTO';
 
 export class RatingController {
+  constructor(
+    private createRatingUseCase: CreateRatingUseCase,
+    private listRatingsByPetShopUseCase: ListRatingsByPetShopUseCase,
+  ) {}
+
   async create(request: NextRequest, { params }: { params: { id: string } }) {
     try {
       const petShopId = params.id;
@@ -24,19 +25,7 @@ export class RatingController {
       const body = await request.json();
       const { score, comment } = createRatingBodySchema.parse(body);
 
-      const ratingsRepository = new PrismaRatingRepository();
-      const petShopsRepository = new PrismaPetShopRepository();
-      const clientUsersRepository = new PrismaClientUserRepository();
-      const appointmentsRepository = new PrismaAppointmentRepository();
-
-      const createRatingUseCase = new CreateRatingUseCase(
-        ratingsRepository,
-        petShopsRepository,
-        clientUsersRepository,
-        appointmentsRepository,
-      );
-
-      const { rating } = await createRatingUseCase.execute({
+      const { rating } = await this.createRatingUseCase.execute({
         petShopId,
         clientId,
         score,
@@ -47,7 +36,7 @@ export class RatingController {
     } catch (error) {
       if (error instanceof ZodError) {
         return NextResponse.json(
-          { message: 'Validation error.', errors: error.flatten().fieldErrors },
+          { message: 'Validation error.', issues: z.treeifyError(error) },
           { status: 400 },
         );
       }
@@ -60,7 +49,7 @@ export class RatingController {
         return NextResponse.json({ message: error.message }, { status: 403 });
       }
 
-      console.error(error); // Log do erro para depuração
+      console.error(error);
       return NextResponse.json({ message: 'Internal server error.' }, { status: 500 });
     }
   }
@@ -74,15 +63,7 @@ export class RatingController {
 
       const { page, limit } = listRatingsQuerySchema.parse(query);
 
-      const ratingsRepository = new PrismaRatingRepository();
-      const petShopsRepository = new PrismaPetShopRepository();
-
-      const listRatingsByPetShopUseCase = new ListRatingsByPetShopUseCase(
-        ratingsRepository,
-        petShopsRepository,
-      );
-
-      const { ratings, totalCount } = await listRatingsByPetShopUseCase.execute({
+      const { ratings, totalCount } = await this.listRatingsByPetShopUseCase.execute({
         petShopId,
         page,
         limit,
@@ -100,7 +81,7 @@ export class RatingController {
     } catch (error) {
       if (error instanceof ZodError) {
         return NextResponse.json(
-          { message: 'Validation error.', errors: error.flatten().fieldErrors },
+          { message: 'Validation error.', issues: z.treeifyError(error) },
           { status: 400 },
         );
       }

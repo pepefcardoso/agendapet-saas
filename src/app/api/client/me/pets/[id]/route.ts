@@ -1,7 +1,7 @@
-import { PetController } from '@/infra/http/controllers/PetController';
+import { makePetController } from '@/main/factories/controllers/makePetController';
 import { NextRequest } from 'next/server';
 
-const petController = new PetController();
+const petController = makePetController();
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   return petController.update(request, { params });

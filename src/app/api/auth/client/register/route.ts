@@ -1,7 +1,8 @@
-import { RegisterClientUserController } from '@/infra/http/controllers/RegisterClientUserController';
+import { makeRegisterClientUserController } from '@/main/factories/controllers/makeRegisterClientUserController';
 import { NextRequest } from 'next/server';
 
+const registerClientUserController = makeRegisterClientUserController();
+
 export async function POST(request: NextRequest) {
-  const registerController = new RegisterClientUserController();
-  return registerController.handle(request);
+  return registerClientUserController.handle(request);
 }

@@ -1,28 +1,29 @@
 import { SubscribeToPlanUseCase } from '@/core/application/use-cases/SubscribeToPlanUseCase';
-import { PrismaClientSubscriptionPlanRepository } from '@/infra/database/prisma/repositories/PrismaClientSubscriptionPlanRepository';
-import { PrismaClientSubscriptionRepository } from '@/infra/database/prisma/repositories/PrismaClientSubscriptionRepository';
 import { CancelClientSubscriptionUseCase } from '@/core/application/use-cases/CancelClientSubscriptionUseCase';
 import { ResourceNotFoundError } from '@/core/application/use-cases/errors/ResourceNotFoundError';
 import { NotAuthorizedError } from '@/core/application/use-cases/errors/NotAuthorizedError';
-import { SubscriptionFailedError } from '@/core/application/use-cases/errors/SubscriptionFailedError'; // Usando o erro correto do UseCase
+import { SubscriptionFailedError } from '@/core/application/use-cases/errors/SubscriptionFailedError';
 
 interface SubscribeData {
   planId: string;
   clientId: string;
 }
 
+interface ControllerResponse {
+  status: number;
+  data: any; // Ajustar para o tipo de dado real ou unknown
+}
+
 export class ClientSubscriptionController {
-  async subscribe(data: SubscribeData) {
-    const planRepository = new PrismaClientSubscriptionPlanRepository();
-    const subscriptionRepository = new PrismaClientSubscriptionRepository();
+  constructor(
+    private subscribeToPlanUseCase: SubscribeToPlanUseCase,
+    private cancelClientSubscriptionUseCase: CancelClientSubscriptionUseCase,
+  ) {}
 
-    const subscribeToPlanUseCase = new SubscribeToPlanUseCase(
-      subscriptionRepository,
-      planRepository,
-    );
-
+  async subscribe(data: SubscribeData): Promise<ControllerResponse> {
     try {
-      const newSubscription = await subscribeToPlanUseCase.execute({
+      // O Use Case já está disponível via construtor
+      const newSubscription = await this.subscribeToPlanUseCase.execute({
         planId: data.planId,
         clientId: data.clientId,
       });
@@ -42,12 +43,9 @@ export class ClientSubscriptionController {
     }
   }
 
-  async cancel(subscriptionId: string, clientId: string) {
-    const subscriptionRepository = new PrismaClientSubscriptionRepository();
-    const cancelSubscriptionUseCase = new CancelClientSubscriptionUseCase(subscriptionRepository);
-
+  async cancel(subscriptionId: string, clientId: string): Promise<ControllerResponse> {
     try {
-      await cancelSubscriptionUseCase.execute({
+      await this.cancelClientSubscriptionUseCase.execute({
         subscriptionId,
         clientId,
       });

@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-
-import { PrismaPetShopRepository } from '@/infra/database/prisma/repositories/PrismaPetShopRepository';
 import { GetMyPetShopUseCase } from '@/core/application/use-cases/GetMyPetShopUseCase';
 import { UpdatePetShopSettingsUseCase } from '@/core/application/use-cases/UpdatePetShopSettingsUseCase';
+import { ListPetShopAgendaUseCase } from '@/core/application/use-cases/ListPetShopAgendaUseCase';
 import { ResourceNotFoundError } from '@/core/application/use-cases/errors/ResourceNotFoundError';
 import { updatePetShopSettingsBodySchema } from '../dtos/UpdatePetShopSettingsBodyDTO';
-import { PrismaAppointmentRepository } from '@/infra/database/prisma/repositories/PrismaAppointmentRepository';
-import { ListPetShopAgendaUseCase } from '@/core/application/use-cases/ListPetShopAgendaUseCase';
 import { listAgendaQuerySchema } from '../dtos/ListAgendaQueryDTO';
 
 export class PetShopController {
+  constructor(
+    private getMyPetShopUseCase: GetMyPetShopUseCase,
+    private updatePetShopSettingsUseCase: UpdatePetShopSettingsUseCase,
+    private listPetShopAgendaUseCase: ListPetShopAgendaUseCase,
+  ) {}
+
   async get(request: NextRequest): Promise<NextResponse> {
     try {
       const petShopId = request.headers.get('X-PetShop-ID');
@@ -19,10 +22,7 @@ export class PetShopController {
         return NextResponse.json({ message: 'PetShop ID not found in token.' }, { status: 401 });
       }
 
-      const petShopRepository = new PrismaPetShopRepository();
-      const getMyPetShopUseCase = new GetMyPetShopUseCase(petShopRepository);
-
-      const { petShop } = await getMyPetShopUseCase.execute({ petShopId });
+      const { petShop } = await this.getMyPetShopUseCase.execute({ petShopId });
 
       return NextResponse.json({ petShop });
     } catch (error) {
@@ -46,10 +46,7 @@ export class PetShopController {
       const requestBody = await request.json();
       const data = updatePetShopSettingsBodySchema.parse(requestBody);
 
-      const petShopRepository = new PrismaPetShopRepository();
-      const updatePetShopUseCase = new UpdatePetShopSettingsUseCase(petShopRepository);
-
-      const { petShop } = await updatePetShopUseCase.execute({ petShopId, data });
+      const { petShop } = await this.updatePetShopSettingsUseCase.execute({ petShopId, data });
 
       return NextResponse.json({ petShop });
     } catch (error) {
@@ -59,7 +56,7 @@ export class PetShopController {
 
       if (error instanceof z.ZodError) {
         return NextResponse.json(
-          { message: 'Validation error.', issues: error.format() },
+          { message: 'Validation error.', issues: z.treeifyError(error) },
           { status: 400 },
         );
       }
@@ -81,16 +78,13 @@ export class PetShopController {
         date: searchParams.get('date'),
       });
 
-      const appointmentRepository = new PrismaAppointmentRepository();
-      const listPetShopAgendaUseCase = new ListPetShopAgendaUseCase(appointmentRepository);
-
-      const { appointments } = await listPetShopAgendaUseCase.execute({ petShopId, date });
+      const { appointments } = await this.listPetShopAgendaUseCase.execute({ petShopId, date });
 
       return NextResponse.json({ appointments });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return NextResponse.json(
-          { message: 'Validation error.', issues: error.format() },
+          { message: 'Validation error.', issues: z.treeifyError(error) },
           { status: 400 },
         );
       }

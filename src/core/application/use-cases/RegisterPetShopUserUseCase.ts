@@ -1,8 +1,8 @@
-import { hash } from 'bcryptjs';
 import { PetShopUser, Role } from '@prisma/client';
 import { IPetShopUserRepository } from '@/core/domain/repositories/IPetShopUserRepository';
 import { IPetShopRepository } from '@/core/domain/repositories/IPetShopRepository';
 import { UserAlreadyExistsError } from './errors/UserAlreadyExistsError';
+import { IHasher } from '@/infra/providers/IHasher';
 
 interface IRegisterPetShopUserUseCaseRequest {
   petShopName: string;
@@ -19,6 +19,7 @@ export class RegisterPetShopUserUseCase {
   constructor(
     private petShopUserRepository: IPetShopUserRepository,
     private petShopRepository: IPetShopRepository,
+    private hasher: IHasher,
   ) {}
 
   async execute({
@@ -37,7 +38,7 @@ export class RegisterPetShopUserUseCase {
       name: petShopName,
     });
 
-    const passwordHash = await hash(password, 8);
+    const passwordHash = await this.hasher.hash(password);
 
     const user = await this.petShopUserRepository.create({
       name,

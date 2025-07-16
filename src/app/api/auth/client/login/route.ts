@@ -1,7 +1,8 @@
-import { AuthenticateClientUserController } from '@/infra/http/controllers/AuthenticateClientUserController';
+import { makeAuthenticateClientUserController } from '@/main/factories/controllers/makeAuthenticateClientUserController';
 import { NextRequest } from 'next/server';
 
+const authenticateClientUserController = makeAuthenticateClientUserController();
+
 export async function POST(request: NextRequest) {
-  const authenticateController = new AuthenticateClientUserController();
-  return authenticateController.handle(request);
+  return authenticateClientUserController.handle(request);
 }

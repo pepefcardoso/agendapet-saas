@@ -1,7 +1,7 @@
-import { ClientManagementController } from '@/infra/http/controllers/ClientManagementController';
+import { makeClientManagementController } from '@/main/factories/controllers/makeClientManagementController';
 import { NextRequest } from 'next/server';
 
-const clientManagementController = new ClientManagementController();
+const clientManagementController = makeClientManagementController();
 
 export async function POST(request: NextRequest) {
   return clientManagementController.add(request);

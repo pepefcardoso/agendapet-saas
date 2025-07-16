@@ -1,46 +1,37 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { authenticateUserBodySchema } from '../dtos/AuthenticateUserDTO';
-import { PrismaClientUserRepository } from '@/infra/database/prisma/repositories/PrismaClientUserRepository';
 import { AuthenticateClientUserUseCase } from '@/core/application/use-cases/AuthenticateClientUserUseCase';
-import { JwtService } from '@/infra/providers/JwtService';
 import { InvalidCredentialsError } from '@/core/application/use-cases/errors/InvalidCredentialsError';
+import { authenticateUserBodySchema } from '@/infra/http/dtos/AuthenticateUserDTO';
+import { NextResponse } from 'next/server';
+import { ZodError } from 'zod';
 
 export class AuthenticateClientUserController {
-  async handle(request: NextRequest): Promise<NextResponse> {
+  constructor(private authenticateUseCase: AuthenticateClientUserUseCase) {}
+
+  async handle(request: Request) {
     try {
       const requestBody = await request.json();
       const { email, password } = authenticateUserBodySchema.parse(requestBody);
 
-      // --- Injeção de Dependências Manual ---
-      const clientUserRepository = new PrismaClientUserRepository();
-      const jwtService = new JwtService();
-      const authenticateUseCase = new AuthenticateClientUserUseCase(
-        clientUserRepository,
-        jwtService,
-      );
-      // ------------------------------------
-
-      const { accessToken } = await authenticateUseCase.execute({
+      const { accessToken } = await this.authenticateUseCase.execute({
         email,
         password,
       });
 
-      return NextResponse.json({ accessToken });
+      return NextResponse.json({ accessToken }, { status: 200 });
     } catch (error) {
-      if (error instanceof InvalidCredentialsError) {
-        return NextResponse.json({ message: error.message }, { status: 401 }); // 401 Unauthorized
-      }
-
-      if (error instanceof z.ZodError) {
+      if (error instanceof ZodError) {
         return NextResponse.json(
-          { message: 'Validation error.', issues: error.format() },
+          { message: 'Validation failed.', issues: error.format() },
           { status: 400 },
         );
       }
 
+      if (error instanceof InvalidCredentialsError) {
+        return NextResponse.json({ message: error.message }, { status: 401 });
+      }
+
       console.error(error);
-      return NextResponse.json({ message: 'Internal Server Error.' }, { status: 500 });
+      return NextResponse.json({ message: 'Internal server error.' }, { status: 500 });
     }
   }
 }

@@ -1,47 +1,40 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { registerPetShopUserBodySchema } from '../dtos/RegisterPetShopUserDTO';
-import { PrismaPetShopUserRepository } from '@/infra/database/prisma/repositories/PrismaPetShopUserRepository';
-import { PrismaPetShopRepository } from '@/infra/database/prisma/repositories/PrismaPetShopRepository';
 import { RegisterPetShopUserUseCase } from '@/core/application/use-cases/RegisterPetShopUserUseCase';
 import { UserAlreadyExistsError } from '@/core/application/use-cases/errors/UserAlreadyExistsError';
+import { registerPetShopUserBodySchema } from '@/infra/http/dtos/RegisterPetShopUserDTO';
+import { NextResponse } from 'next/server';
+import z, { ZodError } from 'zod';
 
 export class RegisterPetShopUserController {
-  async handle(request: NextRequest): Promise<NextResponse> {
-    try {
-      const requestBody = await request.json();
-      const { name, email, password, petShopName } =
-        registerPetShopUserBodySchema.parse(requestBody);
+  constructor(private registerPetShopUserUseCase: RegisterPetShopUserUseCase) {}
 
-      const petShopUserRepository = new PrismaPetShopUserRepository();
-      const petShopRepository = new PrismaPetShopRepository();
-      const registerUseCase = new RegisterPetShopUserUseCase(
-        petShopUserRepository,
-        petShopRepository,
+  async handle(request: Request) {
+    try {
+      const { name, email, password, petShopName } = registerPetShopUserBodySchema.parse(
+        await request.json(),
       );
 
-      await registerUseCase.execute({
-        petShopName,
+      const { user } = await this.registerPetShopUserUseCase.execute({
         name,
         email,
         password,
+        petShopName,
       });
 
-      return new NextResponse(null, { status: 201 });
+      return NextResponse.json({ user }, { status: 201 });
     } catch (error) {
-      if (error instanceof UserAlreadyExistsError) {
-        return NextResponse.json({ message: error.message }, { status: 409 });
-      }
-
-      if (error instanceof z.ZodError) {
+      if (error instanceof ZodError) {
         return NextResponse.json(
-          { message: 'Validation error.', issues: error.format() },
+          { message: 'Validation failed.', issues: z.treeifyError(error) },
           { status: 400 },
         );
       }
 
+      if (error instanceof UserAlreadyExistsError) {
+        return NextResponse.json({ message: error.message }, { status: 409 });
+      }
+
       console.error(error);
-      return NextResponse.json({ message: 'Internal Server Error.' }, { status: 500 });
+      return NextResponse.json({ message: 'Internal server error.' }, { status: 500 });
     }
   }
 }
