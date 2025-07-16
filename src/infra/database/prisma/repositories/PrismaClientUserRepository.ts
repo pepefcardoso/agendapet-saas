@@ -7,20 +7,20 @@ import { ClientUser } from '@prisma/client';
 
 export class PrismaClientUserRepository implements IClientUserRepository {
   async findByEmail(email: string): Promise<ClientUser | null> {
-    const user = await prisma.clientUser.findUnique({
-      where: {
-        email,
-      },
+    return prisma.clientUser.findUnique({
+      where: { email },
     });
+  }
 
-    return user;
+  async findById(id: string): Promise<ClientUser | null> {
+    return prisma.clientUser.findUnique({
+      where: { id },
+    });
   }
 
   async create(data: CreateClientUserData): Promise<ClientUser> {
-    const user = await prisma.clientUser.create({
+    return prisma.clientUser.create({
       data,
     });
-
-    return user;
   }
 }

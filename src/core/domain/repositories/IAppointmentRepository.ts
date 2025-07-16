@@ -25,4 +25,5 @@ export interface IAppointmentRepository {
     endTime: Date,
     tx?: PrismaTransactionClient,
   ): Promise<Appointment | null>;
+  hasCompletedAppointmentByClientAndPetShop(clientId: string, petShopId: string): Promise<boolean>;
 }

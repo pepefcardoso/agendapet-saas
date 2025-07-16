@@ -5,7 +5,7 @@ import {
   AppointmentWithServices,
   PrismaTransactionClient,
 } from '@/core/domain/repositories/IAppointmentRepository';
-import { Appointment } from '@prisma/client';
+import { Appointment, AppointmentStatus } from '@prisma/client';
 import { startOfDay, endOfDay } from 'date-fns';
 
 export class PrismaAppointmentRepository implements IAppointmentRepository {
@@ -79,26 +79,34 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     return db.appointment.findFirst({
       where: {
         petShopId,
-        status: { not: 'CANCELLED' }, // Ignorar agendamentos cancelados
+        status: { not: 'CANCELLED' },
         AND: [
           {
             date: {
-              lt: endTime, // Começa antes do nosso agendamento terminar
+              lt: endTime,
             },
           },
-          {
-            // Precisamos calcular o fim do agendamento existente.
-            // Esta consulta é complexa e pode exigir SQL bruto ou uma mudança no schema.
-            // Por simplicidade aqui, vamos manter uma lógica aproximada, mas o ideal
-            // seria armazenar a `endTime` no banco.
-            // A lógica correta requer uma query mais avançada.
-            // Para o escopo atual, vamos manter a validação em JS no UseCase
-            // como estava, mas a estrutura do método fica pronta.
-            // A query abaixo não funcionará sem a endTime no schema.
-            // Reverteremos a validação para o UseCase por enquanto.
-          },
+          // A lógica correta requer uma query mais avançada.
+          // Para o escopo atual, vamos manter a validação em JS no UseCase
+          // como estava, mas a estrutura do método fica pronta.
+          // A query abaixo não funcionará sem a endTime no schema.
+          // Reverteremos a validação para o UseCase por enquanto.
         ],
       },
     });
+  }
+
+  async hasCompletedAppointmentByClientAndPetShop(
+    clientId: string,
+    petShopId: string,
+  ): Promise<boolean> {
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        clientId,
+        petShopId,
+        status: AppointmentStatus.COMPLETED,
+      },
+    });
+    return !!appointment;
   }
 }
