@@ -2,9 +2,17 @@ import { Appointment, PaymentType, Service } from '@prisma/client';
 import { IAppointmentRepository } from '@/core/domain/repositories/IAppointmentRepository';
 import { IPetShopRepository } from '@/core/domain/repositories/IPetShopRepository';
 import { IServiceRepository } from '@/core/domain/repositories/IServiceRepository';
+import { IClientSubscriptionCreditRepository } from '@/core/domain/repositories/IClientSubscriptionCreditRepository';
+import { IClientLoyaltyPointsRepository } from '@/core/domain/repositories/IClientLoyaltyPointsRepository';
+import { ILoyaltyPromotionRepository } from '@/core/domain/repositories/ILoyaltyPromotionRepository';
 import { ResourceNotFoundError } from './errors/ResourceNotFoundError';
 import { AppointmentOutsideWorkingHoursError } from './errors/AppointmentOutsideWorkingHoursError';
 import { ScheduleConflictError } from './errors/ScheduleConflictError';
+import { InsufficientCreditsError } from './errors/InsufficientCreditsError';
+import { InsufficientPointsError } from './errors/InsufficientPointsError';
+import { IPaymentStrategy, PaymentStrategyContext } from './strategies/payment/IPaymentStrategy';
+import { SubscriptionCreditStrategy } from './strategies/payment/SubscriptionCreditStrategy';
+import { prisma } from '@/infra/database/prisma/client';
 import {
   addMinutes,
   isWithinInterval,
@@ -13,11 +21,7 @@ import {
   setMinutes,
   setSeconds,
 } from 'date-fns';
-import { IPaymentStrategy, PaymentStrategyContext } from './strategies/payment/IPaymentStrategy';
-import { SubscriptionCreditStrategy } from './strategies/payment/SubscriptionCreditStrategy';
-import { InsufficientCreditsError } from './errors/InsufficientCreditsError';
-import { prisma } from '@/infra/database/prisma/client';
-import { IClientSubscriptionCreditRepository } from '@/core/domain/repositories/IClientSubscriptionCreditRepository';
+import { LoyaltyCreditPaymentStrategy } from './strategies/payment/LoyaltyCreditPaymentStrategy';
 
 interface IWorkingHours {
   [dayOfWeek: number]: Array<{ start: string; end: string }>;
@@ -30,6 +34,7 @@ interface ICreateAppointmentUseCaseRequest {
   serviceIds: string[];
   startTime: Date;
   paymentType: PaymentType;
+  loyaltyPromotionId?: string | null;
 }
 
 interface ICreateAppointmentUseCaseResponse {
@@ -44,11 +49,19 @@ export class CreateAppointmentUseCase {
     private petShopRepository: IPetShopRepository,
     private serviceRepository: IServiceRepository,
     clientCreditRepository: IClientSubscriptionCreditRepository,
+    clientLoyaltyPointsRepository: IClientLoyaltyPointsRepository,
+    loyaltyPromotionRepository: ILoyaltyPromotionRepository,
   ) {
     this.paymentStrategies = new Map();
+
     this.paymentStrategies.set(
       'SUBSCRIPTION_CREDIT',
       new SubscriptionCreditStrategy(clientCreditRepository),
+    );
+
+    this.paymentStrategies.set(
+      'LOYALTY_CREDIT',
+      new LoyaltyCreditPaymentStrategy(clientLoyaltyPointsRepository, loyaltyPromotionRepository),
     );
   }
 
@@ -59,6 +72,7 @@ export class CreateAppointmentUseCase {
     serviceIds,
     startTime,
     paymentType,
+    loyaltyPromotionId,
   }: ICreateAppointmentUseCaseRequest): Promise<ICreateAppointmentUseCaseResponse> {
     const petShop = await this.petShopRepository.findById(petShopId);
     if (!petShop) throw new ResourceNotFoundError('Pet shop not found.');
@@ -86,7 +100,7 @@ export class CreateAppointmentUseCase {
 
         const paymentStrategy = this.paymentStrategies.get(paymentType);
         if (paymentStrategy) {
-          const context: PaymentStrategyContext = { tx, services };
+          const context: PaymentStrategyContext = { tx, services, loyaltyPromotionId };
           await paymentStrategy.process(newAppointment, context);
         }
 
@@ -100,6 +114,7 @@ export class CreateAppointmentUseCase {
     } catch (error) {
       if (
         error instanceof InsufficientCreditsError ||
+        error instanceof InsufficientPointsError ||
         error instanceof ScheduleConflictError ||
         error instanceof ResourceNotFoundError
       ) {

@@ -1,4 +1,4 @@
-import { LoyaltyPromotion } from '@prisma/client';
+import { LoyaltyPromotion, Prisma } from '@prisma/client';
 import { prisma } from '../client';
 import { ILoyaltyPromotionRepository } from '@/core/domain/repositories/ILoyaltyPromotionRepository';
 
@@ -20,20 +20,9 @@ export class PrismaLoyaltyPromotionRepository implements ILoyaltyPromotionReposi
     return promotion;
   }
 
-  async findById(
-    id: string,
-  ): Promise<(LoyaltyPromotion & { loyaltyPlan: { petShopId: string } }) | null> {
-    const promotion = await prisma.loyaltyPromotion.findUnique({
-      where: { id },
-      include: {
-        loyaltyPlan: {
-          select: {
-            petShopId: true,
-          },
-        },
-      },
-    });
-    return promotion;
+  async findById(id: string, tx?: Prisma.TransactionClient): Promise<LoyaltyPromotion | null> {
+    const db = tx ?? prisma;
+    return db.loyaltyPromotion.findUnique({ where: { id } });
   }
 
   async listByLoyaltyPlanId(loyaltyPlanId: string): Promise<LoyaltyPromotion[]> {

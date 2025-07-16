@@ -1,4 +1,4 @@
-import { LoyaltyPromotion } from '@prisma/client';
+import { LoyaltyPromotion, Prisma } from '@prisma/client';
 
 export interface ILoyaltyPromotionRepository {
   /**
@@ -18,7 +18,10 @@ export interface ILoyaltyPromotionRepository {
    * @param id O ID da promoção.
    * @returns A promoção com o plano de fidelidade relacionado, ou null.
    */
-  findById(id: string): Promise<(LoyaltyPromotion & { loyaltyPlan: { petShopId: string } }) | null>;
+  findById(
+    id: string,
+    tx?: Prisma.TransactionClient, // Adicionado tx
+  ): Promise<LoyaltyPromotion | null>;
 
   /**
    * Lista todas as promoções de um determinado plano de fidelidade.
