@@ -1,16 +1,18 @@
 import { IClientSubscriptionCreditRepository } from '@/core/domain/repositories/IClientSubscriptionCreditRepository';
 import { prisma } from '@/infra/database/prisma/client';
-import { ClientSubscriptionCredit, PrismaClient } from '@prisma/client';
-
-type PrismaTransactionClient = Omit<
-  PrismaClient,
-  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use'
->;
+import { ClientSubscriptionCredit } from '@prisma/client';
+import { PrismaTransactionClient } from '@/infra/database/prisma/types';
 
 export class PrismaClientSubscriptionCreditRepository
   implements IClientSubscriptionCreditRepository
 {
-  async createMany(credits: any[]): Promise<void> {
+  async createMany(
+    credits: Array<{
+      subscriptionId: string;
+      serviceId: string;
+      remainingCredits: number;
+    }>,
+  ): Promise<void> {
     await prisma.clientSubscriptionCredit.createMany({
       data: credits,
     });

@@ -1,13 +1,8 @@
-import { Prisma } from '@prisma/client';
+import { WorkingHours } from '@/core/domain/types/WorkingHours';
 
-export type UpdatePetShopSettingsData = {
+export type UpdatePetShopSettingsDTO = {
   name?: string;
-  address?: string | null;
-  phone?: string | null;
-  workingHours?: Prisma.InputJsonValue;
+  address?: string;
+  phone?: string;
+  workingHours?: WorkingHours;
 };
-
-export interface IUpdatePetShopSettingsUseCaseRequest {
-  petShopId: string;
-  data: UpdatePetShopSettingsData;
-}

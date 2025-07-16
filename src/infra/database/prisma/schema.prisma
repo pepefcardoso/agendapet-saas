@@ -55,13 +55,15 @@ enum PaymentType {
 
 // Usuário do Petshop (dono, funcionário)
 model PetShopUser {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  email     String  @unique
-  password  String // Hashed
-  role      Role    @default(EMPLOYEE)
+  email     String   @unique
+  password  String
+  role      Role     @default(EMPLOYEE)
   petShopId String
-  petShop   PetShop @relation(fields: [petShopId], references: [id], onDelete: Cascade)
+  petShop   PetShop  @relation(fields: [petShopId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // O Petshop (inquilino da plataforma)
@@ -80,6 +82,8 @@ model PetShop {
   appointments         Appointment[]
   ratings              Rating[]
   clients              PetShopClient[]
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
 }
 
 // Usuário Cliente (cliente final)
@@ -87,13 +91,15 @@ model ClientUser {
   id                  String                @id @default(cuid())
   name                String
   email               String                @unique
-  password            String // Hashed
+  password            String
   pets                Pet[]
   appointments        Appointment[]
   ratings             Rating[]
   petShops            PetShopClient[]
   activeSubscriptions ClientSubscription[]
   loyaltyPoints       ClientLoyaltyPoints[]
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
 }
 
 // Tabela de Junção para a relação N:M entre PetShop e ClientUser
@@ -102,6 +108,8 @@ model PetShopClient {
   clientId  String
   petShop   PetShop    @relation(fields: [petShopId], references: [id], onDelete: Cascade)
   client    ClientUser @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   @@id([petShopId, clientId])
 }
@@ -110,12 +118,14 @@ model PetShopClient {
 
 model PetShopSubscriptionPlan {
   id                      String                @id @default(cuid())
-  name                    String // Ex: "Free", "Basic", "Pro"
+  name                    String
   price                   Decimal
   maxClients              Int
   maxAppointmentsPerMonth Int
-  features                Json // { "loyaltyProgram": true, "onlinePayment": false }
+  features                Json
   subscriptions           PetShopSubscription[]
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
 }
 
 model PetShopSubscription {
@@ -125,6 +135,8 @@ model PetShopSubscription {
   planId      String
   plan        PetShopSubscriptionPlan @relation(fields: [planId], references: [id])
   petShop     PetShop?                @relation("PetShopActiveSubscription")
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
 }
 
 // --- ENTIDADES DO DOMÍNIO DO PETSHOP ---
@@ -137,6 +149,8 @@ model Service {
   petShopId    String
   petShop      PetShop       @relation(fields: [petShopId], references: [id], onDelete: Cascade)
   appointments Appointment[] @relation("AppointmentToService")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Pet {
@@ -146,11 +160,14 @@ model Pet {
   ownerId      String
   owner        ClientUser    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Appointment {
   id          String            @id @default(cuid())
   date        DateTime
+  endTime     DateTime
   status      AppointmentStatus @default(PENDING)
   paymentType PaymentType       @default(MONETARY)
   clientId    String
@@ -161,6 +178,8 @@ model Appointment {
   petShop     PetShop           @relation(fields: [petShopId], references: [id])
   services    Service[]         @relation("AppointmentToService")
   payment     Payment?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 }
 
 // --- MONETIZAÇÃO B2C (PETSHOP -> CLIENTE) ---
@@ -169,11 +188,13 @@ model ClientSubscriptionPlan {
   id            String               @id @default(cuid())
   name          String
   price         Decimal
-  credits       Json // Ex: [{ serviceId: "...", quantity: 2 }]
+  credits       Json
   isActive      Boolean              @default(true)
   petShopId     String
   petShop       PetShop              @relation(fields: [petShopId], references: [id])
   subscriptions ClientSubscription[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 }
 
 model ClientSubscription {
@@ -185,6 +206,8 @@ model ClientSubscription {
   client      ClientUser                 @relation(fields: [clientId], references: [id])
   plan        ClientSubscriptionPlan     @relation(fields: [planId], references: [id])
   credits     ClientSubscriptionCredit[]
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
 }
 
 model ClientSubscriptionCredit {
@@ -193,6 +216,8 @@ model ClientSubscriptionCredit {
   serviceId        String
   remainingCredits Int
   subscription     ClientSubscription @relation(fields: [subscriptionId], references: [id])
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 }
 
 model LoyaltyPlan {
@@ -201,15 +226,19 @@ model LoyaltyPlan {
   petShopId     String             @unique
   petShop       PetShop            @relation(fields: [petShopId], references: [id])
   promotions    LoyaltyPromotion[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 }
 
 model LoyaltyPromotion {
   id             String      @id @default(cuid())
   description    String
   pointsNeeded   Int
-  serviceCredits Json // Ex: [{ serviceId: "...", quantity: 1 }]
+  serviceCredits Json
   loyaltyPlanId  String
   loyaltyPlan    LoyaltyPlan @relation(fields: [loyaltyPlanId], references: [id])
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }
 
 model ClientLoyaltyPoints {
@@ -217,6 +246,8 @@ model ClientLoyaltyPoints {
   petShopId String
   points    Int
   client    ClientUser @relation(fields: [clientId], references: [id])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   @@id([clientId, petShopId])
 }
@@ -225,12 +256,14 @@ model ClientLoyaltyPoints {
 
 model Rating {
   id        String     @id @default(cuid())
-  score     Int // 1 a 5
+  score     Int
   comment   String?
   clientId  String
   petShopId String
   client    ClientUser @relation(fields: [clientId], references: [id])
   petShop   PetShop    @relation(fields: [petShopId], references: [id])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 model Payment {
@@ -240,4 +273,6 @@ model Payment {
   paymentMethod PaymentMethod
   appointmentId String        @unique
   appointment   Appointment   @relation(fields: [appointmentId], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 }

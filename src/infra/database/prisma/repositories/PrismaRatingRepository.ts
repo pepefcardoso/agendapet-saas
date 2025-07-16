@@ -1,3 +1,4 @@
+import { Rating } from '@prisma/client';
 import { prisma } from '../client';
 import {
   IRatingRepository,
@@ -5,7 +6,6 @@ import {
   ListRatingsByPetShopFilters,
   RatingWithClientName,
 } from '@/core/domain/repositories/IRatingRepository';
-import { Rating } from '@prisma/client';
 
 export class PrismaRatingRepository implements IRatingRepository {
   async create(data: CreateRatingData): Promise<Rating> {
@@ -19,42 +19,30 @@ export class PrismaRatingRepository implements IRatingRepository {
     petShopId: string,
     filters?: ListRatingsByPetShopFilters,
   ): Promise<RatingWithClientName[]> {
-    const page = filters?.page ?? 1;
-    const limit = filters?.limit ?? 10;
+    const { page = 1, limit = 10 } = filters || {};
     const skip = (page - 1) * limit;
 
     const ratings = await prisma.rating.findMany({
-      where: {
-        petShopId,
-      },
+      where: { petShopId },
       include: {
         client: {
           select: {
-            name: true, // Inclui apenas o nome do cliente
+            name: true,
           },
         },
       },
-      orderBy: {
-        // Ordena as avaliações da mais recente para a mais antiga
-        // Ou por score, dependendo da necessidade do frontend
-        // Por enquanto, vamos ordenar por data de criação (se tivéssemos createdAt)
-        // Como não temos um campo 'createdAt', vamos assumir uma ordem simples,
-        // ou podemos adicionar um campo 'createdAt' no schema.
-        // Para este momento, não haverá ordenação explícita do Prisma.
-        score: 'desc', // Exemplo de ordenação padrão
-      },
       skip,
       take: limit,
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
-
     return ratings;
   }
 
   async countByPetShopId(petShopId: string): Promise<number> {
     return prisma.rating.count({
-      where: {
-        petShopId,
-      },
+      where: { petShopId },
     });
   }
 }

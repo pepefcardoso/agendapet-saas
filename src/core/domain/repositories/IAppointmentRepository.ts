@@ -1,17 +1,17 @@
 import { Appointment, Prisma, Service } from '@prisma/client';
+import { PrismaTransactionClient } from '@/infra/database/prisma/types';
 
 export type CreateAppointmentData = Omit<
   Prisma.AppointmentUncheckedCreateInput,
-  'id' | 'status'
+  'id' | 'status' | 'endTime'
 > & {
   serviceIds: string[];
+  endTime: Date;
 };
 
 export type AppointmentWithServices = Appointment & {
   services: Service[];
 };
-
-export type PrismaTransactionClient = Prisma.TransactionClient;
 
 export interface IAppointmentRepository {
   create(data: CreateAppointmentData, tx?: PrismaTransactionClient): Promise<Appointment>;

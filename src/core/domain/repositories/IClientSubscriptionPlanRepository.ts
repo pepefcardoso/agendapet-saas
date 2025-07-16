@@ -1,4 +1,4 @@
-import { ClientSubscriptionPlan } from '@prisma/client';
+import { ClientSubscriptionPlan, Prisma } from '@prisma/client';
 
 export interface IClientSubscriptionPlanRepository {
   findById(id: string): Promise<ClientSubscriptionPlan | null>;
@@ -6,7 +6,7 @@ export interface IClientSubscriptionPlanRepository {
   create(data: {
     name: string;
     price: number;
-    credits: any;
+    credits: Prisma.InputJsonValue;
     petShopId: string;
   }): Promise<ClientSubscriptionPlan>;
   save(plan: ClientSubscriptionPlan): Promise<ClientSubscriptionPlan>;

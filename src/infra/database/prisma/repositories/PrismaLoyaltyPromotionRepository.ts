@@ -14,7 +14,7 @@ export class PrismaLoyaltyPromotionRepository implements ILoyaltyPromotionReposi
         loyaltyPlanId: data.loyaltyPlanId,
         description: data.description,
         pointsNeeded: data.pointsNeeded,
-        serviceCredits: data.serviceCredits as any,
+        serviceCredits: data.serviceCredits as Prisma.InputJsonValue,
       },
     });
     return promotion;
@@ -44,7 +44,11 @@ export class PrismaLoyaltyPromotionRepository implements ILoyaltyPromotionReposi
       where: { id },
       data: {
         ...data,
-        serviceCredits: data.serviceCredits ? (data.serviceCredits as any) : undefined,
+        // Usamos Prisma.InputJsonValue para o cast quando serviceCredits está presente.
+        // Isso alinha com o tipo que o Prisma espera para campos JSONB.
+        serviceCredits: data.serviceCredits
+          ? (data.serviceCredits as Prisma.InputJsonValue)
+          : undefined,
       },
     });
     return promotion;

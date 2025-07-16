@@ -1,9 +1,5 @@
-import { ClientSubscriptionCredit, PrismaClient } from '@prisma/client';
-
-type PrismaTransactionClient = Omit<
-  PrismaClient,
-  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use'
->;
+import { ClientSubscriptionCredit } from '@prisma/client';
+import { PrismaTransactionClient } from '@/infra/database/prisma/types';
 
 export interface IClientSubscriptionCreditRepository {
   createMany(
@@ -20,9 +16,5 @@ export interface IClientSubscriptionCreditRepository {
     tx?: PrismaTransactionClient,
   ): Promise<ClientSubscriptionCredit | null>;
 
-  debit(
-    creditId: string,
-    amount: number,
-    tx?: PrismaTransactionClient, // Parâmetro opcional para transações
-  ): Promise<void>;
+  debit(creditId: string, amount: number, tx?: PrismaTransactionClient): Promise<void>;
 }

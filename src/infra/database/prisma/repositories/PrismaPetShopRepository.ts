@@ -28,4 +28,10 @@ export class PrismaPetShopRepository implements IPetShopRepository {
     });
     return petShop;
   }
+
+  async delete(id: string): Promise<void> {
+    await prisma.petShop.delete({
+      where: { id },
+    });
+  }
 }

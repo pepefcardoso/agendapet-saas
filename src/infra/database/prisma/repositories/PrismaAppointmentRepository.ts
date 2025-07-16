@@ -3,8 +3,8 @@ import {
   IAppointmentRepository,
   CreateAppointmentData,
   AppointmentWithServices,
-  PrismaTransactionClient,
 } from '@/core/domain/repositories/IAppointmentRepository';
+import { PrismaTransactionClient } from '@/infra/database/prisma/types';
 import { Appointment, AppointmentStatus } from '@prisma/client';
 import { startOfDay, endOfDay } from 'date-fns';
 
@@ -74,23 +74,19 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   ): Promise<Appointment | null> {
     const db = tx || prisma;
     // Lógica para encontrar agendamentos que se sobrepõem:
-    // Um conflito existe se um agendamento existente começa antes do nosso novo terminar,
-    // E termina depois do nosso novo começar.
+    // Um agendamento existente entra em conflito se:
+    // (Início existente < Fim do novo agendamento) E (Fim existente > Início do novo agendamento)
     return db.appointment.findFirst({
       where: {
         petShopId,
-        status: { not: 'CANCELLED' },
+        status: { not: 'CANCELLED' }, // Exclui agendamentos cancelados
         AND: [
           {
-            date: {
-              lt: endTime,
-            },
+            date: { lt: endTime }, // Início do agendamento existente é antes do fim do novo
           },
-          // A lógica correta requer uma query mais avançada.
-          // Para o escopo atual, vamos manter a validação em JS no UseCase
-          // como estava, mas a estrutura do método fica pronta.
-          // A query abaixo não funcionará sem a endTime no schema.
-          // Reverteremos a validação para o UseCase por enquanto.
+          {
+            endTime: { gt: startTime }, // Fim do agendamento existente é depois do início do novo
+          },
         ],
       },
     });
