@@ -14,13 +14,24 @@ export class PetShopController {
     private listPetShopAgendaUseCase: ListPetShopAgendaUseCase,
   ) {}
 
+  private getPetShopId(request: NextRequest): string | null {
+    return request.headers.get('X-PetShop-ID');
+  }
+
+  private handleAuthError() {
+    console.error(
+      'CRITICAL: PetShop ID not found in request headers. Check middleware configuration.',
+    );
+    return NextResponse.json(
+      { message: 'Internal Server Error: Missing authentication context.' },
+      { status: 500 },
+    );
+  }
+
   async get(request: NextRequest): Promise<NextResponse> {
     try {
-      const petShopId = request.headers.get('X-PetShop-ID');
-
-      if (!petShopId) {
-        return NextResponse.json({ message: 'PetShop ID not found in token.' }, { status: 401 });
-      }
+      const petShopId = this.getPetShopId(request);
+      if (!petShopId) return this.handleAuthError();
 
       const { petShop } = await this.getMyPetShopUseCase.execute({ petShopId });
 
@@ -37,11 +48,8 @@ export class PetShopController {
 
   async update(request: NextRequest): Promise<NextResponse> {
     try {
-      const petShopId = request.headers.get('X-PetShop-ID');
-
-      if (!petShopId) {
-        return NextResponse.json({ message: 'PetShop ID not found in token.' }, { status: 401 });
-      }
+      const petShopId = this.getPetShopId(request);
+      if (!petShopId) return this.handleAuthError();
 
       const requestBody = await request.json();
       const data = updatePetShopSettingsBodySchema.parse(requestBody);
@@ -53,7 +61,6 @@ export class PetShopController {
       if (error instanceof ResourceNotFoundError) {
         return NextResponse.json({ message: error.message }, { status: 404 });
       }
-
       if (error instanceof z.ZodError) {
         return NextResponse.json(
           { message: 'Validation error.', issues: z.treeifyError(error) },
@@ -68,10 +75,8 @@ export class PetShopController {
 
   async listAgenda(request: NextRequest): Promise<NextResponse> {
     try {
-      const petShopId = request.headers.get('X-PetShop-ID');
-      if (!petShopId) {
-        return NextResponse.json({ message: 'PetShop ID not found.' }, { status: 401 });
-      }
+      const petShopId = this.getPetShopId(request);
+      if (!petShopId) return this.handleAuthError();
 
       const { searchParams } = new URL(request.url);
       const { date } = listAgendaQuerySchema.parse({

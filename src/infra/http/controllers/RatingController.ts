@@ -13,15 +13,26 @@ export class RatingController {
     private listRatingsByPetShopUseCase: ListRatingsByPetShopUseCase,
   ) {}
 
+  private getClientId(request: NextRequest): string | null {
+    return request.headers.get('X-User-ID');
+  }
+
+  private handleAuthError() {
+    console.error(
+      'CRITICAL: Client ID not found in request headers. Check middleware configuration for this route.',
+    );
+    return NextResponse.json(
+      { message: 'Internal Server Error: Missing authentication context.' },
+      { status: 500 },
+    );
+  }
+
   async create(request: NextRequest, { params }: { params: { id: string } }) {
     try {
+      const clientId = this.getClientId(request);
+      if (!clientId) return this.handleAuthError();
+
       const petShopId = params.id;
-      const clientId = request.headers.get('X-User-ID');
-
-      if (!clientId) {
-        return NextResponse.json({ message: 'Client ID is missing in headers.' }, { status: 401 });
-      }
-
       const body = await request.json();
       const { score, comment } = createRatingBodySchema.parse(body);
 
@@ -40,15 +51,12 @@ export class RatingController {
           { status: 400 },
         );
       }
-
       if (error instanceof ResourceNotFoundError) {
         return NextResponse.json({ message: error.message }, { status: 404 });
       }
-
       if (error instanceof NotAllowedError) {
         return NextResponse.json({ message: error.message }, { status: 403 });
       }
-
       console.error(error);
       return NextResponse.json({ message: 'Internal server error.' }, { status: 500 });
     }
@@ -57,10 +65,8 @@ export class RatingController {
   async list(request: NextRequest, { params }: { params: { id: string } }) {
     try {
       const petShopId = params.id;
-
       const { searchParams } = new URL(request.url);
       const query = Object.fromEntries(searchParams.entries());
-
       const { page, limit } = listRatingsQuerySchema.parse(query);
 
       const { ratings, totalCount } = await this.listRatingsByPetShopUseCase.execute({
@@ -85,11 +91,9 @@ export class RatingController {
           { status: 400 },
         );
       }
-
       if (error instanceof ResourceNotFoundError) {
         return NextResponse.json({ message: error.message }, { status: 404 });
       }
-
       console.error(error);
       return NextResponse.json({ message: 'Internal server error.' }, { status: 500 });
     }

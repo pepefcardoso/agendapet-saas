@@ -7,6 +7,8 @@ import { PrismaClientLoyaltyPointsRepository } from '@/infra/database/prisma/rep
 import { PrismaLoyaltyPromotionRepository } from '@/infra/database/prisma/repositories/PrismaLoyaltyPromotionRepository';
 import { CreateAppointmentUseCase } from '@/core/application/use-cases/CreateAppointmentUseCase';
 import { ListClientAppointmentsUseCase } from '@/core/application/use-cases/ListClientAppointmentsUseCase';
+import { GetAppointmentDetailsUseCase } from '@/core/application/use-cases/GetAppointmentDetailsUseCase';
+import { CancelAppointmentUseCase } from '@/core/application/use-cases/CancelAppointmentUseCase';
 
 export function makeAppointmentController(): AppointmentController {
   const appointmentRepository = new PrismaAppointmentRepository();
@@ -15,6 +17,8 @@ export function makeAppointmentController(): AppointmentController {
   const clientCreditRepo = new PrismaClientSubscriptionCreditRepository();
   const loyaltyPointsRepo = new PrismaClientLoyaltyPointsRepository();
   const loyaltyPromoRepo = new PrismaLoyaltyPromotionRepository();
+  const getAppointmentDetailsUseCase = new GetAppointmentDetailsUseCase(appointmentRepository);
+  const cancelAppointmentUseCase = new CancelAppointmentUseCase(appointmentRepository);
 
   const createAppointmentUseCase = new CreateAppointmentUseCase(
     appointmentRepository,
@@ -26,5 +30,10 @@ export function makeAppointmentController(): AppointmentController {
   );
   const listClientAppointmentsUseCase = new ListClientAppointmentsUseCase(appointmentRepository);
 
-  return new AppointmentController(createAppointmentUseCase, listClientAppointmentsUseCase);
+  return new AppointmentController(
+    createAppointmentUseCase,
+    listClientAppointmentsUseCase,
+    getAppointmentDetailsUseCase,
+    cancelAppointmentUseCase,
+  );
 }

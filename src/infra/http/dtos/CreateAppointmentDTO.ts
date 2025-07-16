@@ -1,14 +1,21 @@
-import { PaymentType } from '@prisma/client';
 import { z } from 'zod';
 
-export const createAppointmentBodySchema = z
+const PaymentTypeEnum = z.enum(['MONETARY', 'SUBSCRIPTION_CREDIT', 'LOYALTY_CREDIT']);
+
+export const createAppointmentSchema = z
   .object({
-    petShopId: z.cuid(),
-    petId: z.cuid(),
-    startTime: z.coerce.date(),
-    serviceIds: z.array(z.string()).min(1, 'É necessário selecionar pelo menos um serviço.'),
-    paymentType: z.enum(PaymentType),
-    loyaltyPromotionId: z.string().cuid().optional().nullable(),
+    petId: z.cuid('O ID do pet deve ser um CUID válido.'),
+    petShopId: z.cuid('O ID do petshop deve ser um CUID válido.'),
+    services: z
+      .array(z.cuid('Cada ID de serviço deve ser um CUID válido.'))
+      .min(1, 'Pelo menos um serviço deve ser selecionado.'),
+    appointmentDate: z.coerce.date({
+      error: () => ({ message: 'A data do agendamento é inválida.' }),
+    }),
+    paymentType: PaymentTypeEnum,
+    loyaltyPromotionId: z
+      .cuid('O ID da promoção de fidelidade deve ser um CUID válido.')
+      .optional(),
   })
   .refine(
     (data) => {
@@ -18,9 +25,7 @@ export const createAppointmentBodySchema = z
       return true;
     },
     {
-      message: 'loyaltyPromotionId is required for LOYALTY_CREDIT payment type',
+      message: 'O ID da promoção de fidelidade é obrigatório para pagamento com pontos.',
       path: ['loyaltyPromotionId'],
     },
   );
-
-export type CreateAppointmentDTO = z.infer<typeof createAppointmentBodySchema>;

@@ -14,8 +14,15 @@ export class ClientManagementController {
   async add(request: NextRequest): Promise<NextResponse> {
     try {
       const petShopId = request.headers.get('X-PetShop-ID');
+
       if (!petShopId) {
-        return NextResponse.json({ message: 'PetShop ID is missing.' }, { status: 400 });
+        console.error(
+          'CRITICAL: PetShop ID not found in request headers. Check middleware configuration.',
+        );
+        return NextResponse.json(
+          { message: 'Internal Server Error: Missing authentication context.' },
+          { status: 500 },
+        );
       }
 
       const requestBody = await request.json();
@@ -31,7 +38,7 @@ export class ClientManagementController {
     } catch (error) {
       if (error instanceof z.ZodError) {
         return NextResponse.json(
-          { message: 'Validation error.', issues: error.format() },
+          { message: 'Validation error.', issues: z.treeifyError(error) },
           { status: 400 },
         );
       }
@@ -47,8 +54,15 @@ export class ClientManagementController {
   async list(request: NextRequest): Promise<NextResponse> {
     try {
       const petShopId = request.headers.get('X-PetShop-ID');
+
       if (!petShopId) {
-        return NextResponse.json({ message: 'PetShop ID is missing.' }, { status: 400 });
+        console.error(
+          'CRITICAL: PetShop ID not found in request headers. Check middleware configuration.',
+        );
+        return NextResponse.json(
+          { message: 'Internal Server Error: Missing authentication context.' },
+          { status: 500 },
+        );
       }
 
       const { clients } = await this.listPetShopClientsUseCase.execute({ petShopId });

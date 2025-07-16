@@ -16,12 +16,24 @@ export class ServiceController {
     private deleteServiceUseCase: DeleteServiceUseCase,
   ) {}
 
+  private getPetShopId(request: NextRequest): string | null {
+    return request.headers.get('X-PetShop-ID');
+  }
+
+  private handleAuthError() {
+    console.error(
+      'CRITICAL: PetShop ID not found in request headers. Check middleware configuration.',
+    );
+    return NextResponse.json(
+      { message: 'Internal Server Error: Missing authentication context.' },
+      { status: 500 },
+    );
+  }
+
   async create(request: NextRequest): Promise<NextResponse> {
     try {
-      const petShopId = request.headers.get('X-PetShop-ID');
-      if (!petShopId) {
-        return NextResponse.json({ message: 'PetShop ID is missing.' }, { status: 400 });
-      }
+      const petShopId = this.getPetShopId(request);
+      if (!petShopId) return this.handleAuthError();
 
       const requestBody = await request.json();
       const { name, duration, price } = createServiceBodySchema.parse(requestBody);
@@ -37,7 +49,7 @@ export class ServiceController {
     } catch (error) {
       if (error instanceof z.ZodError) {
         return NextResponse.json(
-          { message: 'Validation error.', issues: error.format() },
+          { message: 'Validation error.', issues: z.treeifyError(error) },
           { status: 400 },
         );
       }
@@ -48,10 +60,8 @@ export class ServiceController {
 
   async list(request: NextRequest): Promise<NextResponse> {
     try {
-      const petShopId = request.headers.get('X-PetShop-ID');
-      if (!petShopId) {
-        return NextResponse.json({ message: 'PetShop ID is missing.' }, { status: 400 });
-      }
+      const petShopId = this.getPetShopId(request);
+      if (!petShopId) return this.handleAuthError();
 
       const { services } = await this.listServicesByPetShopUseCase.execute({ petShopId });
 
@@ -67,10 +77,8 @@ export class ServiceController {
     { params }: { params: { id: string } },
   ): Promise<NextResponse> {
     try {
-      const petShopId = request.headers.get('X-PetShop-ID');
-      if (!petShopId) {
-        return NextResponse.json({ message: 'PetShop ID is missing.' }, { status: 400 });
-      }
+      const petShopId = this.getPetShopId(request);
+      if (!petShopId) return this.handleAuthError();
 
       const serviceId = params.id;
       const requestBody = await request.json();
@@ -86,7 +94,7 @@ export class ServiceController {
     } catch (error) {
       if (error instanceof z.ZodError) {
         return NextResponse.json(
-          { message: 'Validation error.', issues: error.format() },
+          { message: 'Validation error.', issues: z.treeifyError(error) },
           { status: 400 },
         );
       }
@@ -106,10 +114,8 @@ export class ServiceController {
     { params }: { params: { id: string } },
   ): Promise<NextResponse> {
     try {
-      const petShopId = request.headers.get('X-PetShop-ID');
-      if (!petShopId) {
-        return NextResponse.json({ message: 'PetShop ID is missing.' }, { status: 400 });
-      }
+      const petShopId = this.getPetShopId(request);
+      if (!petShopId) return this.handleAuthError();
 
       const serviceId = params.id;
 

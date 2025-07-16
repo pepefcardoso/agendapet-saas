@@ -16,12 +16,24 @@ export class PetController {
     private deletePetUseCase: DeletePetUseCase,
   ) {}
 
+  private getOwnerId(request: NextRequest): string | null {
+    return request.headers.get('X-User-ID');
+  }
+
+  private handleAuthError() {
+    console.error(
+      'CRITICAL: Client ID (ownerId) not found in request headers. Check middleware configuration.',
+    );
+    return NextResponse.json(
+      { message: 'Internal Server Error: Missing authentication context.' },
+      { status: 500 },
+    );
+  }
+
   async create(request: NextRequest): Promise<NextResponse> {
     try {
-      const ownerId = request.headers.get('X-User-ID');
-      if (!ownerId) {
-        return NextResponse.json({ message: 'Client ID is missing.' }, { status: 400 });
-      }
+      const ownerId = this.getOwnerId(request);
+      if (!ownerId) return this.handleAuthError();
 
       const requestBody = await request.json();
       const { name, size } = createPetBodySchema.parse(requestBody);
@@ -32,7 +44,7 @@ export class PetController {
     } catch (error) {
       if (error instanceof z.ZodError) {
         return NextResponse.json(
-          { message: 'Validation error.', issues: error.format() },
+          { message: 'Validation error.', issues: z.treeifyError(error) },
           { status: 400 },
         );
       }
@@ -43,10 +55,8 @@ export class PetController {
 
   async list(request: NextRequest): Promise<NextResponse> {
     try {
-      const ownerId = request.headers.get('X-User-ID');
-      if (!ownerId) {
-        return NextResponse.json({ message: 'Client ID is missing.' }, { status: 400 });
-      }
+      const ownerId = this.getOwnerId(request);
+      if (!ownerId) return this.handleAuthError();
 
       const { pets } = await this.listMyPetsUseCase.execute({ ownerId });
 
@@ -62,10 +72,8 @@ export class PetController {
     { params }: { params: { id: string } },
   ): Promise<NextResponse> {
     try {
-      const ownerId = request.headers.get('X-User-ID');
-      if (!ownerId) {
-        return NextResponse.json({ message: 'Client ID is missing.' }, { status: 400 });
-      }
+      const ownerId = this.getOwnerId(request);
+      if (!ownerId) return this.handleAuthError();
 
       const petId = params.id;
       const requestBody = await request.json();
@@ -77,7 +85,7 @@ export class PetController {
     } catch (error) {
       if (error instanceof z.ZodError) {
         return NextResponse.json(
-          { message: 'Validation error.', issues: error.format() },
+          { message: 'Validation error.', issues: z.treeifyError(error) },
           { status: 400 },
         );
       }
@@ -97,10 +105,8 @@ export class PetController {
     { params }: { params: { id: string } },
   ): Promise<NextResponse> {
     try {
-      const ownerId = request.headers.get('X-User-ID');
-      if (!ownerId) {
-        return NextResponse.json({ message: 'Client ID is missing.' }, { status: 400 });
-      }
+      const ownerId = this.getOwnerId(request);
+      if (!ownerId) return this.handleAuthError();
 
       const petId = params.id;
 

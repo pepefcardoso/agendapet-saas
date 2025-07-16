@@ -2,7 +2,7 @@ import { AuthenticateClientUserUseCase } from '@/core/application/use-cases/Auth
 import { InvalidCredentialsError } from '@/core/application/use-cases/errors/InvalidCredentialsError';
 import { authenticateUserBodySchema } from '@/infra/http/dtos/AuthenticateUserDTO';
 import { NextResponse } from 'next/server';
-import { ZodError } from 'zod';
+import z, { ZodError } from 'zod';
 
 export class AuthenticateClientUserController {
   constructor(private authenticateUseCase: AuthenticateClientUserUseCase) {}
@@ -21,7 +21,7 @@ export class AuthenticateClientUserController {
     } catch (error) {
       if (error instanceof ZodError) {
         return NextResponse.json(
-          { message: 'Validation failed.', issues: error.format() },
+          { message: 'Validation failed.', issues: z.treeifyError(error) },
           { status: 400 },
         );
       }

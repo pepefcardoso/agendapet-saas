@@ -1,7 +1,8 @@
-import { PetShopController } from '@/infra/http/controllers/PetShopController';
+import { makePetShopController } from '@/main/factories/controllers/makePetShopController';
 import { NextRequest } from 'next/server';
 
+const petShopController = makePetShopController();
+
 export async function PUT(request: NextRequest) {
-  const petShopController = new PetShopController();
   return petShopController.update(request);
 }
